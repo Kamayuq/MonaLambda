@@ -146,6 +146,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Monadic\Common.h" />
+    <ClInclude Include="Monadic\ContinuationMonad.h" />
+    <ClInclude Include="Monadic\DoNotation.h" />
+    <ClInclude Include="Monadic\ListMonad.h" />
+    <ClInclude Include="Monadic\MaybeMonad.h" />
+    <ClInclude Include="Monadic\Monad.h" />
+    <ClInclude Include="Monadic\MonadBuilder.h" />
+    <ClInclude Include="Monadic\StateMonad.h" />
+    <ClInclude Include="Monadic\TypeList.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
