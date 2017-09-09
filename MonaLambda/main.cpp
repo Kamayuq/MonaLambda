@@ -81,7 +81,7 @@ int main(void)
 
 		//Debug::checkMonadLaws<ListT<Maybe>>();
 		//Debug::checkMonadLaws<ListT<State>>(3);
-		//Debug::checkMonadLaws<ListT<Cont>>();
+		//Debug::checkMonadLaws<ListT<Cont>>([](auto a) { return a; });
 
 		std::cout << "ListMonadTransformer passed" << std::endl;
 	}//*/
@@ -113,7 +113,7 @@ int main(void)
 		std::cout << "MaybeMonad passed" << std::endl;
 	}//*/
 
-	{
+/*	{
 		using namespace Monadic;
 
 		int vala = 0;
@@ -163,7 +163,7 @@ int main(void)
 		auto res = mRes1([](auto a) { return a; });
 		(void)res;
 
-		//Debug::checkMonadLaws<Cont>();
+		Debug::checkMonadLaws<Cont>([](auto a) { return a; });
 
 		std::cout << "ContinuationMonad passed" << std::endl;
 	} //*/
@@ -189,7 +189,7 @@ int main(void)
 		
 		//Debug::checkMonadLaws<ContT<Maybe>>();
 		//Debug::checkMonadLaws<ContT<State>>(3);
-		//Debug::checkMonadLaws<ContT<Cont>>();
+		//Debug::checkMonadLaws<ContT<Cont>>([](auto a) { return a; });
 
 		std::cout << "ContinuationMonadTransformer passed" <<std::endl;
 	}//*/

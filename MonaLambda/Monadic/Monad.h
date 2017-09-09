@@ -44,12 +44,12 @@ namespace Monadic
 struct Debug
 {
 
-	template<class MonadUtil, typename... Args>
+	template<class MonadType, typename... Args>
 	static void checkMonadLaw1(const Args&... args)
 	{
-		auto apply1 = [](int i) { return MonadUtil::Return(2 * i); };
+		auto apply1 = [](int i) { return MonadType::Return(2 * i); };
 		{
-			auto verfy1 = (MonadUtil::Return(123) >= apply1);
+			auto verfy1 = MonadType::Bind(MonadType::Return(123), apply1);
 			auto verfy2 = apply1(123);
 			(void)verfy1;
 			(void)verfy2;
@@ -61,23 +61,23 @@ struct Debug
 			static int b = 0;
 			b++;//*/
 
-			assert(verfy1.Eval(args...) == verfy2.Eval(args...));
+			assert(verfy1(args...) == verfy2(args...));
 #ifndef MONAD_NDEBUG
-			static_assert(std::is_same<decltype(verfy1.Eval(args...)), decltype(verfy2.Eval(args...))>::value
+			static_assert(std::is_same<decltype(verfy1(args...)), decltype(verfy2(args...))>::value
 				, "Monad Law1 not satisfied");
 #endif
 		}
 		{
-			auto verfy1 = DO
+			auto verfy1 = MonadType::Do
 			(
-				apply1(123)
+				LAZY(apply1(123))
 			);
 			
 			int a1;
-			auto verfy2 = DO
+			auto verfy2 = MonadType::Do
 			(
-				a1 <<= MonadUtil::Return(123),
-				apply1(a1)
+				a1 <<= LAZY(MonadType::Return(123)),
+				LAZY(apply1(a1))
 			);
 
 			(void)verfy1;
@@ -90,112 +90,112 @@ struct Debug
 			static int b = 0;
 			b++;//*/
 			
-			assert(verfy1.Eval(args...) == verfy2.Eval(args...));
+			assert(verfy1(args...) == verfy2(args...));
 #ifndef MONAD_NDEBUG
-			static_assert(std::is_same<decltype(verfy1.Eval(args...)), decltype(verfy2.Eval(args...))>::value
+			static_assert(std::is_same<decltype(verfy1(args...)), decltype(verfy2(args...))>::value
 				, "Monad Law1 not satisfied");
 #endif
 		}
 	}
 
-	template<class MonadUtil, typename... Args>
+	template<class MonadType, typename... Args>
 	static void checkMonadLaw2(const Args&... args)
 	{
-		auto apply1 = [](int i) { return MonadUtil::Return(i); };
+		auto apply1 = [](int i) { return MonadType::Return(i); };
 		{
-			auto verfy3 = (MonadUtil::Return(123) >= apply1);
-			auto verfy4 = MonadUtil::Return(123);
+			auto verfy3 = MonadType::Bind(MonadType::Return(123), apply1);
+			auto verfy4 = MonadType::Return(123);
 
 			(void)verfy3;
 			(void)verfy4;
 
-			assert(verfy3.Eval(args...) == verfy4.Eval(args...));
+			assert(verfy3(args...) == verfy4(args...));
 #ifndef MONAD_NDEBUG
-			static_assert(std::is_same<decltype(verfy3.Eval(args...)), decltype(verfy4.Eval(args...))>::value
+			static_assert(std::is_same<decltype(verfy3(args...)), decltype(verfy4(args...))>::value
 				, "Monad Law2 not satisfied");
 #endif
 		}
 		{
-			auto mVal = MonadUtil::Return(123);
+			auto mVal = MonadType::Return(123);
 
-			auto verfy4 = DO
+			auto verfy4 = MonadType::Do
 			(
-				mVal
+				LAZY(mVal)
 			);
 
 			int v1;
-			auto verfy3 = DO
+			auto verfy3 = MonadType::Do
 			(
-				v1 <<= mVal,
-				apply1(v1)
+				v1 <<= LAZY(mVal),
+				LAZY(apply1(v1))
 			);
 
 			(void)verfy3;
 			(void)verfy4;
 
-			assert(verfy3.Eval(args...) == verfy4.Eval(args...));
+			assert(verfy3(args...) == verfy4(args...));
 #ifndef MONAD_NDEBUG
-			static_assert(std::is_same<decltype(verfy3.Eval(args...)), decltype(verfy4.Eval(args...))>::value
+			static_assert(std::is_same<decltype(verfy3(args...)), decltype(verfy4(args...))>::value
 				, "Monad Law2 not satisfied");
 #endif
 		}
 	}
 
-	template<class MonadUtil, typename... Args>
+	template<class MonadType, typename... Args>
 	static void checkMonadLaw3(const Args&... args)
 	{
-		auto apply1 = [](int i) { return MonadUtil::Return(2 * i); };
-		auto apply2 = [](int i) { return MonadUtil::Return(-i); };
+		auto apply1 = [](int i) { return MonadType::Return(2 * i); };
+		auto apply2 = [](int i) { return MonadType::Return(-i); };
 		{
-			auto verfy5 = MonadUtil::Return(123) >= apply1 >= apply2;
-			auto verfy6 = MonadUtil::Return(123) >= [=](auto x) { return apply1(x) >= apply2; };
+			auto verfy5 = MonadType::Bind(MonadType::Bind(MonadType::Return(123), apply1), apply2);
+			auto verfy6 = MonadType::Bind(MonadType::Return(123), [=](auto x) { return MonadType::Bind(apply1(x), apply2); });
 			(void)verfy5;
 			(void)verfy6;
-			assert(verfy5.Eval(args...) == verfy6.Eval(args...));
+			assert(verfy5(args...) == verfy6(args...));
 #ifndef MONAD_NDEBUG
-			static_assert(std::is_same<decltype(verfy5.Eval(args...)), decltype(verfy6.Eval(args...))>::value
+			static_assert(std::is_same<decltype(verfy5(args...)), decltype(verfy6(args...))>::value
 				, "Monad Law3 not satisfied");
 #endif
 		}
 		{
-			auto mVal = MonadUtil::Return(123);
+			auto mVal = MonadType::Return(123);
 
 			int v1, v2;
-			auto verfy5 = DO
+			auto verfy5 = MonadType::Do
 			(
-				v1 <<= mVal,
-				v2 <<= apply1(v1),
-				apply2(v2)
+				v1 <<= LAZY(mVal),
+				v2 <<= LAZY(apply1(v1)),
+				LAZY(apply2(v2))
 			);
 
 			int v3, v4;
-			auto verfy6 = DO
+			auto verfy6 = MonadType::Do
 			(
-				v4 <<= DO
+				v4 <<= LAZY(MonadType::Do
 				(
-					v3 <<= mVal,
-					apply1(v3)
-				),
-				apply2(v4)
+					v3 <<= LAZY(mVal),
+					LAZY(apply1(v3))
+				)),
+				LAZY(apply2(v4))
 			);
 
 			(void)verfy5;
 			(void)verfy6;
 
-			assert(verfy5.Eval(args...) == verfy6.Eval(args...));
+			assert(verfy5(args...) == verfy6(args...));
 #ifndef MONAD_NDEBUG
-			static_assert(std::is_same<decltype(verfy5.Eval(args...)), decltype(verfy6.Eval(args...))>::value
+			static_assert(std::is_same<decltype(verfy5(args...)), decltype(verfy6(args...))>::value
 				, "Monad Law3 not satisfied");
 #endif
 		}
 	}
 
-	template<class MonadUtil, typename... Args>
+	template<class MonadType, typename... Args>
 	static void checkMonadLaws(const Args&... args)
 	{
-		checkMonadLaw1<MonadUtil>(args...);
-		checkMonadLaw2<MonadUtil>(args...);
-		checkMonadLaw3<MonadUtil>(args...);
+		checkMonadLaw1<MonadType>(args...);
+		checkMonadLaw2<MonadType>(args...);
+		checkMonadLaw3<MonadType>(args...);
 	}
 
 }; //namespace Debug

@@ -125,6 +125,7 @@ public:
 	{
 		return Option<A>(None(message));
 	}
+
 };
 
 template<typename Inner>

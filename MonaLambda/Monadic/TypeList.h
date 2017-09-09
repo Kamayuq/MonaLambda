@@ -219,7 +219,7 @@ struct List
 	template <typename F, typename A, typename... B>
 	TL_INLINE static auto Flatten(const F& f, const A& a, const B&... b)
 	{
-		return Concat(f(a), Flatten(f, b...));
+		return List::Concat(f(a), Flatten(f, b...));
 	}
 
 	template <typename F>
