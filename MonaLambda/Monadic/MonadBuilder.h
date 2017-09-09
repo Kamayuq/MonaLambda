@@ -30,239 +30,19 @@
 #pragma once
 #include "Common.h"
 
-#define ML_INLINE inline
-
-#ifdef _MSC_VER
-	#pragma warning(disable : 4503)
-#endif
-
 namespace Monadic
 {
-
-namespace Detail
-{
-
-template<typename T>
-class bindable
-{
-	template<typename K>
-	friend ML_INLINE auto operator >= (const T &m, const K& k)
-	{
-		return m.Bind(k);
-	}
-
-	template<typename K>
-	friend ML_INLINE auto operator > (const T &m, const K& k)
-	{
-		return m >= [k](auto _) { return k; };
-	}
-};
-
-template<typename T, typename A>
-class assignable
-{
-	friend ML_INLINE auto operator <<= (A& a, const T &m)
-	{
-		return m.AssignMonadicValue(&a);
-	}
-};
-
-struct ImmutableType {};
-struct AssignedType {};
-
-class MonadBase1 {};
-class MonadBase2 {};
-
-template<typename A, typename M>
-class MonadClass : public M, public MonadBase1
-{
-public:
-	MonadClass(const M& m) : M(m)
-	{
-		static_assert(!std::is_base_of<MonadBase1, M>::value, "M is already type of a Monad try not to nest as it might cause errors and long compile times");
-	}
-
-	typedef A MonadValueType;
-	typedef M MonadBaseType;
-	typedef MonadClass<A, M> MonadClassType;
-};
-
-template<typename M>
-auto toMonadBaseInternal(const std::true_type&, const M& m)
--> typename M::MonadClassType //MSVSClang debug info is crashing without this 
-{
-	typedef typename M::MonadClassType MB;
-	return *static_cast<const MB*>(&m);
-}
-
-template<typename M>
-auto toMonadBaseInternal(const std::false_type&, const M& m) 
--> M //MSVSClang debug info is crashing without this 
-{
-	return m;
-}
-
-template<typename M>
-auto toMonadBase(const M& m) 
--> decltype(toMonadBaseInternal(typename std::is_convertible<const M*, const MonadBase1*>::type(), m)) //MSVSClang debug info is crashing without this 
-{
-	//is_base_of tries to instantiate the derived type when clang for MS is used
-	return toMonadBaseInternal(typename std::is_convertible<const M*, const MonadBase1*>::type(), m);
-};
-
-template<typename A, typename K, class>
-class LambdaWrapper : public K
-{
-public:
-	LambdaWrapper(const K& k, A* a) : K(k) {}
-};
-
-template<typename A, typename K>
-class LambdaWrapper<A, K, AssignedType> : protected K
-{
-	A* a;
-
-public:
-	LambdaWrapper(const K& k, A* a) : K(k), a(a) {}
-
-	ML_INLINE auto operator() (A value) const
-	-> decltype(K::operator()(value)) //MSVSClang debug info is crashing without this 
-	{
-		*a = value;
-		return K::operator()(value);
-	}
-};
-
-template<typename M, bool CheckBase = true>
-void checkMonadConstraints()
-{
-	static_assert(!CheckBase || std::is_base_of<MonadBase1, M>::value, "Type is not a Monad Type");
-	static_assert(!std::is_base_of<MonadBase2, M>::value, "Deep nesting of Monadtypes bloats the MangledNames and might cause VC++ to truncate it");
-}
-
-template<typename A>
-void checkValueConstraints()
-{
-	static_assert(!std::is_base_of<MonadBase2, A>::value, "Using Monadtypes as values bloats the MangledNames and might cause VC++ to truncate it");
-}
-
-template<class MonadType, typename A, typename M, typename C = ImmutableType>
-class Monad
-	: public MonadClass<A, M>
-	, public MonadType::MonadBase
-	, public MonadBase2
-	, private bindable<Monad<MonadType, A, M, C>>
-	, private assignable<Monad<MonadType, A, M, C>, A>
-{
-private:
-	A* a = nullptr;
-
-public:
-	typedef MonadClass<A, M> MonadClassType;
-	typedef Monad<MonadType, A, M, C> MonadInstanceType;
-
-	Monad(const M& m, A* a = nullptr) : MonadClassType(m), a(a) 
-	{
-		checkMonadConstraints<M, false>();
-		checkValueConstraints<A>();
-	}
-
-	template<typename A>
-	ML_INLINE static auto Return(const A& a)
-	//-> decltype(MonadType::Return(a)) //MSVSClang debug info is crashing without this 
-	{
-		return MonadType::Return(a);
-	}
-
-	template
-	<
-		typename K,
-		typename LW = LambdaWrapper<A, K, C>,
-		typename B = typename std::result_of<K(A)>::type::MonadValueType
-	>
-	ML_INLINE auto Bind(const K& k) const 
-	//-> decltype(MonadType:: template Bind<MonadClassType, B>(toMonadBase(*this), std::declval<LW>())) //MSVSClang debug info is crashing without this 
-	{
-#ifndef NDEBUG
-		static_assert(function_traits::is_callable<K(A)>::value, "the parameter of the function bound to the instance of the monad is incompatible with the type of the monad. Have you left a trailing comma in the last statement of a DO notation?");
-		typedef typename std::result_of<K(A)>::type ResultType;
-		static_assert(!std::is_same<void, ResultType>::value, "returning nothing is not possible use 'return Return(Unit());' instead");
-		static_assert(std::is_convertible<ResultType*, typename MonadType::MonadBase*>::value, "the function result is not type of the monad are you using the right Return?");
-#endif	
-		LW k2(k, a);
-		return MonadType:: template Bind<MonadClassType, B>(toMonadBase(*this), k2);
-	}
-
-	template<typename... Args>
-	auto Eval(const Args&... args) const 
-	-> decltype(MonadType::Eval(toMonadBase(*this), args...)) //MSVSClang debug info is crashing without this 
-	{
-		return MonadType::Eval(toMonadBase(*this), args...);
-	};
-
-	auto AssignMonadicValue(A* a) const 
-	-> Monad<MonadType, A, M, AssignedType> //MSVSClang debug info is crashing without this 
-	{
-		static_assert(!std::is_convertible<A*, MonadBase1*>::value, "Monadic values cannot be assigned");
-		return Monad<MonadType, A, M, AssignedType>(toMonadBase(*this), a);
-	}
-};
-
-template<class MonadType, typename A, typename M>
-auto make_Monad_Internal(const std::true_type&, const std::true_type&, const M& m) 
--> Monad<MonadType, typename A::MonadBaseType, typename M::MonadBaseType> //MSVSClang debug info is crashing without this 
-{
-	typedef typename A::MonadBaseType AB;
-	typedef typename M::MonadBaseType MB;
-	return Monad<MonadType, AB, MB>(m);
-}
-
-template<class MonadType, typename A, typename M>
-auto make_Monad_Internal(const std::true_type&, const std::false_type&, const M& m) 
--> Monad<MonadType, typename A::MonadBaseType, M> //MSVSClang debug info is crashing without this 
-{
-	typedef typename A::MonadBaseType AB;
-	return Monad<MonadType, AB, M>(m);
-}
-
-template<class MonadType, typename A, typename M>
-auto make_Monad_Internal(const std::false_type&, const std::true_type&, const M& m) 
--> Monad<MonadType, A, typename M::MonadBaseType> //MSVSClang debug info is crashing without this 
-{
-	typedef typename M::MonadBaseType MB;
-	return Monad<MonadType, A, MB>(m);
-}
-
-template<class MonadType, typename A, typename M>
-auto make_Monad_Internal(const std::false_type&, const std::false_type&, const M& m) 
--> Monad<MonadType, A, M> //MSVSClang debug info is crashing without this 
-{
-	return Monad<MonadType, A, M>(m);
-}
-
-template<class MonadType, typename A, typename M>
-auto make_Monad(const M& m) 
--> decltype(make_Monad_Internal<MonadType, A, M>(typename std::is_base_of<MonadBase1, A>::type(), typename std::is_base_of<MonadBase1, M>::type(), m)) //MSVSClang debug info is crashing without this 
-{
-	return make_Monad_Internal<MonadType, A, M>(typename std::is_base_of<MonadBase1, A>::type(), typename std::is_base_of<MonadBase1, M>::type(), m);
-}
-//#define make_Monad(e) make_Monad(e)
-
-}; //namespace Detail
 
 template<typename F, typename... Args>
 struct LiftMonad
 {
-	template<typename MonadUtilType>
+	template<typename MonadType>
 	static auto liftM(const F& f)
 	{
-		typedef typename MonadUtilType::MonadType MonadType;
 		static_assert(function_traits::is_callable<F(Args...)>::value, "lift cannot be called with this arguments");
 		return [f](Args... args)
 		{ 
-			typedef typename std::result_of<F(Args...)>::type B;
-			auto lift = MonadType::Return(f(args...));
-			return Detail::make_Monad<MonadType, B>(lift);
+			return MonadType::Return(f(args...));
 		};
 	}
 };
@@ -271,6 +51,85 @@ template<typename F, typename... Args>
 struct LiftMonad<F(Args...)> : LiftMonad<F, Args...> 
 {
 
+};
+
+template<typename LAMBDA, typename VALUE>
+class AssignedLazy : public LAMBDA
+{
+	template<typename TYPE>
+	friend class Monad;
+
+	typedef AssignedLazy<LAMBDA, VALUE> ThisType;
+
+	VALUE& Assignment;
+
+public:
+	AssignedLazy(LAMBDA&& Lambda, VALUE& Assignment) : LAMBDA(std::forward<LAMBDA>(Lambda)), Assignment(Assignment)
+	{}
+};
+
+template<typename LAMBDA>
+class Lazy : public LAMBDA
+{
+	typedef Lazy<LAMBDA> ThisType;
+
+public:
+	Lazy(LAMBDA&& Lambda) : LAMBDA(std::forward<LAMBDA>(Lambda))
+	{}
+
+	template<typename VALUE>
+	friend decltype(auto) operator <<= (VALUE& a, ThisType&& l)
+	{
+		return AssignedLazy<LAMBDA, VALUE>(std::forward<ThisType>(l), a);
+	}
+};
+
+template<typename LAMBDA>
+auto MakeLazy(LAMBDA&& Lambda)
+{
+	return Lazy<LAMBDA>(std::forward<LAMBDA>(Lambda));
+};
+#define LAZY(EXPR) MakeLazy([&](){ return EXPR; })
+
+template<typename TYPE>
+class Monad
+{
+protected:
+	template<typename M, typename K, typename LAMBDA>
+	struct WrappedBind : public LAMBDA
+	{
+		typedef M M;
+		typedef K K;
+		WrappedBind(const LAMBDA& Lambda) : LAMBDA(Lambda) {}
+	};
+
+	template<typename M, typename K, typename LAMBDA>
+	static auto WrapBind(const LAMBDA& Lambda) { return WrappedBind<M, K, LAMBDA>(Lambda); }
+
+public:
+	template<typename X>
+	static auto Do(const Lazy<X>& x)
+	{
+		return x();
+	};
+
+	template<typename X, typename... XS>
+	static auto Do(const Lazy<X>& x, const XS&... xs)
+	{
+		return TYPE::Bind(x(), [&](auto) constexpr { return Do(xs...); });
+	};
+
+	template<typename X, typename V>
+	static auto Do(const AssignedLazy<X, V>& x)
+	{
+		return TYPE::Bind(x(), [&](auto a) constexpr { x.Assignment = a; return TYPE::Return(a); });
+	};
+
+	template<typename X, typename V, typename... XS>
+	static auto Do(const AssignedLazy<X, V>& x, const XS&... xs)
+	{
+		return TYPE::Bind(x(), [&](auto a) constexpr { x.Assignment = a; return Do(xs...); });
+	};
 };
 
 }; //namespace Monadic

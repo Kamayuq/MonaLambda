@@ -34,9 +34,6 @@
 namespace Monadic
 {
 
-namespace Detail
-{
-
 template<typename S, typename A>
 struct Pair : private equal_comparable<Pair<S, A>>
 {
@@ -47,7 +44,7 @@ struct Pair : private equal_comparable<Pair<S, A>>
 	S state;
 	A value;
 
-	ML_INLINE bool equal_to(const Pair<S, A>& rhs) const
+	inline bool equal_to(const Pair<S, A>& rhs) const
 	{
 		return state == rhs.state
 			&& value == rhs.value;
@@ -55,195 +52,133 @@ struct Pair : private equal_comparable<Pair<S, A>>
 };
 
 template<typename S, typename A>
-auto make_Pair(const S& state, const A& value)
+auto MakePair(const S& state, const A& value)
 {
 	return Pair<S, A>(state, value);
 }
 
-} //namespace Detail
 
-class State
+class State : public Monad<State>
 {
-	class StateBase
-	{
-	};
-
 public:
-	typedef StateBase MonadBase;
-	typedef State	  MonadType;
-
-	template<typename A>
-	static ML_INLINE auto Return(const A& a)
+	template<typename M, typename K>
+	static auto Bind(const M& m, const K& k)
 	{
-		auto ret = [a](auto s)
+		return [m, k](auto s) constexpr
 		{
-			return Detail::make_Pair(s, a);
-		};
+			auto p = m(s);
 
-		return Detail::make_Monad<MonadType, A>(ret);
-	}
-
-	template<typename M, typename B = typename M::MonadValueType, typename K>
-	static ML_INLINE auto Bind(const M& m, const K& k)
-	{
-		Detail::checkMonadConstraints<M>();
-		Detail::checkValueConstraints<B>();
-
-		auto bind = [m, k](auto s) // std::pair<B, S>
-		{
-			auto p = m(s); // std::pair<A, S>
-
-			static_assert(function_traits::is_callable<decltype(k)(decltype(p.value))>::value, "the state parameter has mismatched type");
+			//static_assert(function_traits::is_callable<decltype(k)(decltype(p.value))>::value, "the state parameter has mismatched type");
 			auto b = k(p.value);
 			return b(p.state);
 		};
-
-		return Detail::make_Monad<MonadType, B>(bind);
 	}
 
-	template<typename M, typename S>
-	static auto Eval(const M& m, const S& s)
+	template<typename A>
+	static auto Return(const A& a)
 	{
-		return m(s);
-	};
-
-	template<typename S>
-	ML_INLINE static auto Get()
-	{
-		auto get = [](auto s) { return Detail::make_Pair(s, s); };
-		return Detail::make_Monad<MonadType, S>(get);
+		return [a](auto s) constexpr
+		{
+			return MakePair(s, a);
+		};
 	}
 
 	template<typename S>
-	ML_INLINE static auto Put(const S& s)
+	static auto Get()
 	{
-		auto put = [s](auto) { return Detail::make_Pair(s, Unit()); };
-		return Detail::make_Monad<MonadType, Unit>(put);
+		return [](auto s) constexpr { return MakePair(s, s); };
+	}
+
+	template<typename S>
+	static auto Put(const S& s)
+	{
+		return [s](auto) constexpr { return MakePair(s, Unit()); };
 	}
 	
 	template<typename F>
-	ML_INLINE static auto Modify(const F& f)
+	static auto Modify(const F& f)
 	{
-		auto modify = [f](auto s) { return Detail::make_Pair(f(s), Unit()); };
-		return Detail::make_Monad<MonadType, Unit>(modify);
+		return [f](auto s) constexpr { return MakePair(f(s), Unit()); };
 	}
 
-	template
-	<
-		typename A, 
-		typename B
-	>
-	ML_INLINE static auto Seq(const A& a, const B& b)
+	template<typename A, typename B>
+	static auto Seq(const A& a, const B& b)
 	{
-		return a.Bind([b](auto) { return b; });
+		return State::Bind(a, [b](auto) constexpr { return b; });
 	}
 };
 
-template<typename OtherMonadType>
-class StateT
+template<typename Inner>
+class StateT : public Monad<StateT<Inner>>
 {
-	class StateTBase
-	{
-	};
-
 public:
-	typedef StateTBase							MonadBase;
-	typedef StateT<OtherMonadType>				MonadType;
-	typedef typename OtherMonadType::MonadType	InnerMonadType;
-
-	template<typename A>
-	static ML_INLINE auto Return(const A& a)
+	template<typename M, typename K>
+	static auto Bind(const M& m, const K& k)
 	{
-		auto ret = [a](auto s)
+		return [m, k](auto s) constexpr
 		{
-			auto inner =  InnerMonadType::Return(Detail::make_Pair(s, a));
-			return Detail::toMonadBase(inner);
-		};
-		return Detail::make_Monad<MonadType, A>(ret);
-	}
-
-	template<typename M, typename B = typename M::MonadValueType, typename K>
-	static ML_INLINE auto Bind(const M& m, const K& k)
-	{
-		Detail::checkMonadConstraints<M>();
-		Detail::checkValueConstraints<B>();
-
-		auto bind = [m, k](auto s)
-		{
-			auto mp = m(s);
-			auto inner = InnerMonadType::Bind(Detail::toMonadBase(mp), [k](auto p)
+			return Inner::Bind(m(s), [k](auto p) constexpr
 			{
 				auto v2 = p.value;
 				auto s2 = p.state;
 				auto b = k(v2);
 				return b(s2);
 			});
-			return Detail::toMonadBase(inner);
 		};
-		return Detail::make_Monad<MonadType, B>(bind);
 	}
 
-	template<typename M, typename S, typename... Args>
-	static auto Eval(const M& m, const S& s, const Args&... args)
+	template<typename A>
+	static auto Return(const A& a)
 	{
-		return InnerMonadType::Eval(m(s), args...);
+		return [a](auto s) constexpr
+		{
+			return Inner::Return(MakePair(s, a));
+		};
 	}
 
 	template<typename MA>
-	ML_INLINE static auto ReturnM(const MA& ma)
+	static auto ReturnM(const MA& ma)
 	{
-		auto retM = [ma](auto s)
+		return [ma](auto s) constexpr
 		{
-			auto inner = InnerMonadType::Bind(toMonadBase(ma), [s, ma](auto a)
+			return Inner::Bind(ma, [s, ma](auto a) constexpr
 			{
-				return MonadType::Return(ma)(s);
+				return Return(ma)(s);
 			});
-			return Detail::toMonadBase(inner);
 		};
-		return Detail::make_Monad<MonadType, MA>(retM);
 	}
 
 	template<typename S>
-	ML_INLINE static auto Get()
+	static auto Get()
 	{
-		auto get = [](auto s)
+		return [](auto s) constexpr
 		{
-			auto inner = InnerMonadType::Return(Detail::make_Pair(s, s));
-			return Detail::toMonadBase(inner);
+			return Inner::Return(MakePair(s, s));
 		};
-		return Detail::make_Monad<MonadType, S>(get);
 	}
 
 	template<typename S>
-	ML_INLINE static auto Put(const S& s)
+	static auto Put(const S& s)
 	{
-		auto put = [s](auto)
+		return [s](auto) constexpr
 		{
-			auto inner = InnerMonadType::Return(Detail::make_Pair(s, Unit()));
-			return Detail::toMonadBase(inner);
+			return Inner::Return(MakePair(s, Unit()));
 		};
-		return Detail::make_Monad<MonadType, Unit>(put);
 	}
 	
 	template<typename F>
-	ML_INLINE static auto Modify(const F& f)
+	static auto Modify(const F& f)
 	{
-		auto modify = [f](auto s)
+		return [f](auto s) constexpr
 		{
-			auto inner = InnerMonadType::Return(Detail::make_Pair(f(s), Unit()));
-			return Detail::toMonadBase(inner);
+			return Inner::Return(MakePair(f(s), Unit()));
 		};
-		return Detail::make_Monad<MonadType, Unit>(modify);
 	}
 
-	template
-	<
-		typename A, 
-		typename B
-	>
-	ML_INLINE static auto Seq(const A& a, const B& b)
+	template<typename A, typename B>
+	static auto Seq(const A& a, const B& b)
 	{
-		return a.Bind([b](auto) { return b; });
+		return StateT<Inner>::Bind(a, [b](auto) constexpr { return b; });
 	}
 };
 

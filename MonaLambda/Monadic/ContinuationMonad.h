@@ -34,125 +34,73 @@
 namespace Monadic
 {
 
-class Cont
+class Cont : public Monad<Cont>
 {
-	class ContBase
-	{
-	};
-
 public:
-	typedef ContBase MonadBase;
-	typedef Cont	 MonadType;
+	template<typename M, typename K>
+	static auto Bind(const M& m, const K& k)
+	{
+		return [m, k](auto b /* (b -> r) -> r */) constexpr
+		{
+			return m([b, k](auto a) constexpr
+			{
+				auto f2 = k(a);
+				return f2(b); /* (b -> r) -> r */
+			});
+		};
+	}
 
 	template<typename A>
-	ML_INLINE static auto Return(const A& a)
+	static auto Return(const A& a)
 	{
-		auto ret = [a](auto k /* 'a->'r */)
+		return [a] (auto k /* 'a->'r */) constexpr
 		{
 			return k(a);
 		};
-
-		return Detail::make_Monad<MonadType, A>(ret);
-	}
-
-	template<typename M, typename B = typename M::MonadValueType, typename K>
-	ML_INLINE static auto Bind(const M& m, const K& k)
-	{
-		Detail::checkMonadConstraints<M>();
-		Detail::checkValueConstraints<B>();
-
-		auto bind = [m, k](auto b /* (b -> r) -> r */)
-		{
-			auto f1 = [b, k](auto a)
-			{
-				auto f2 = k(a);
-				return f2(b); /* (b -> r) -> r */
-			};
-
-			return m(f1);
-		};
-
-		return Detail::make_Monad<MonadType, B>(bind);
-	}
-
-	template<typename M>
-	static auto Eval(const M& m)
-	{
-		auto f = [](auto v) { return v; };
-		return m(f);
 	}
 };
 
-template<typename OtherMonadType>
-class ContT
+template<typename Inner>
+class ContT : public Monad<ContT<Inner>>
 {
-	class ContTBase
-	{
-	};
-
 public:
-	typedef ContTBase							MonadBase;
-	typedef ContT<OtherMonadType>				MonadType;
-	typedef typename OtherMonadType::MonadType	InnerMonadType;
-
-	template<typename A>
-	ML_INLINE static auto Return(const A& a)
+	template<typename M, typename K>
+	static auto Bind(const M& m, const K& k)
 	{
-		auto ret = [a](auto k /* 'a->'r */)
+		return [m, k](auto b /* (b -> r) -> r */) constexpr
 		{
-			auto inner = InnerMonadType::Return(k(a));
-			return Detail::toMonadBase(inner);
-		};
-
-		return Detail::make_Monad<MonadType, A>(ret);
-	}
-
-	template<typename M, typename B = typename M::MonadValueType, typename K>
-	ML_INLINE static auto Bind(const M& m, const K& k)
-	{
-		Detail::checkMonadConstraints<M>();
-		Detail::checkValueConstraints<B>();
-
-		auto bind = [m, k](auto b /* (b -> r) -> r */)
-		{
-			auto f1 = [b, k](auto a)
+			auto f1 = [b, k](auto a) constexpr
 			{
 				auto f2 = k(a);
 				return f2(b); /* (b -> r) -> r */
 			};
 
-			auto mb = m(f1);
-
-			auto inner = InnerMonadType::Bind(Detail::toMonadBase(mb), [](auto b)
+			return Inner::Bind(m(f1), [](auto b) constexpr
 			{
 				return b;
 			});
-			return Detail::toMonadBase(inner);
 		};
-
-		return Detail::make_Monad<MonadType, B>(bind);
 	}
 
-	template<typename M, typename... Args>
-	static auto Eval(const M& m, const Args&... args)
+	template<typename A>
+	static auto Return(const A& a)
 	{
-		auto f = [](auto v) { return v; };
-		auto mb = m(f);
-		return InnerMonadType::Eval(mb, args...);
+		return [a](auto k /* 'a->'r */) constexpr
+		{
+			return Inner::Return(k(a));
+		};
 	}
 
 	template<typename MA>
-	ML_INLINE static auto ReturnM(const MA& ma)
+	static auto ReturnM(const MA& ma)
 	{
-		auto retM = [ma](auto k /* 'a->'r */)
+		return [ma](auto k /* 'a->'r */) constexpr
 		{
-			auto inner = InnerMonadType::Bind(Detail::toMonadBase(ma), [k, ma](auto a)
+			return Inner::Bind(ma, [k, ma](auto a) constexpr
 			{
-				return MonadType::Return(ma)(k);
+				return Return(ma)(k);
 			});
-			return Detail::toMonadBase(inner);
 		};
-		return Detail::make_Monad<MonadType, typename MA::MonadInstanceType>(retM);
 	}
 };
 

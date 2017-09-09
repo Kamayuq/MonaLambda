@@ -35,95 +35,50 @@
 namespace Monadic
 {
 
-class ListM
+class ListM : public Monad<ListM>
 {
-	class ListBase
-	{
-	};
-
 public:
-	typedef ListBase MonadBase;
-	typedef ListM	 MonadType;
+	template<typename M, typename K>
+	static auto Bind(const M& m, const K& k)
+	{
+		return List::Flatmap(k)(m);
+	}
 
 	template<typename A>
-	ML_INLINE static auto Return(const A& a)
+	static auto Return(const A& a)
 	{
-		auto ret = List::Make(a);
-		return Detail::make_Monad<MonadType, A>(ret);
-	}
-
-	template<typename M, typename B = typename M::MonadValueType, typename K>
-	ML_INLINE static auto Bind(const M& m, const K& k)
-	{
-		Detail::checkMonadConstraints<M>();
-		Detail::checkValueConstraints<B>();
-
-		auto bind = List::Flatmap(k)(m);
-		return Detail::make_Monad<MonadType, B>(bind);
-	}
-
-	template<typename M>
-	static auto Eval(const M& m)
-	{
-		return m;
+		return List::Make(a);
 	}
 };
 
-template<typename OtherMonadType>
-class ListT
+template<typename Inner>
+class ListT : public Monad<ListT<Inner>>
 {
-	class ListTBase
-	{
-	};
-
 public:
-	typedef ListTBase							MonadBase;
-	typedef ListT<OtherMonadType>				MonadType;
-	typedef typename OtherMonadType::MonadType	InnerMonadType;
-
-	template<typename A>
-	ML_INLINE static auto Return(const A& a)
+	template<typename M, typename K>
+	static auto Bind(const M& ma, const K& k)
 	{
-		auto inner = InnerMonadType::Return(a);
-		auto ret = ListM::Return(Detail::toMonadBase(inner));
-		return Detail::make_Monad<MonadType, A>(ret);
-	}
-
-	template<typename M, typename B = typename M::MonadValueType, typename K>
-	ML_INLINE static auto Bind(const M& ma, const K& k)
-	{
-		Detail::checkMonadConstraints<M>();
-		Detail::checkValueConstraints<B>();
-
 		auto bind = List::Fmap([k](auto m)
 		{
-			auto inner = InnerMonadType::Bind(Detail::toMonadBase(m), [k](auto a)
+			return Inner::Bind(m, [k](auto a)
 			{
 				auto mb = k(a);
 				return mb.Head();
 			});
-			return Detail::toMonadBase(inner);
 		});
-		auto mb = bind(ma);
-		return Detail::make_Monad<MonadType, B>(mb);
+		return bind(ma);
 	}
 
-	template<typename M, typename... Args>
-	static auto Eval(const M& ma, const Args&... args)
+	template<typename A>
+	static auto Return(const A& a)
 	{
-		return List::Fmap([args...](auto m)
-		{
-			auto inner = InnerMonadType::Eval(m, args...);
-			return Detail::toMonadBase(inner);
-		})(ma);
+		return ListM::Return(Inner::Return(a));
 	}
 
 	template<typename MA>
-	ML_INLINE static auto ReturnM(const MA& ma)
+	static auto ReturnM(const MA& ma)
 	{
-		auto retM = ListM::Return(ma);
-		typedef typename MA::MonadValueType A;
-		return Detail::make_Monad<MonadType, A>(retM);
+		return ListM::Return(ma);
 	}
 };
 

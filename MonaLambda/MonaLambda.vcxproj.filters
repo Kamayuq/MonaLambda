@@ -15,9 +15,6 @@
     <ClInclude Include="Monadic\ContinuationMonad.h">
       <Filter>Monadic</Filter>
     </ClInclude>
-    <ClInclude Include="Monadic\DoNotation.h">
-      <Filter>Monadic</Filter>
-    </ClInclude>
     <ClInclude Include="Monadic\ListMonad.h">
       <Filter>Monadic</Filter>
     </ClInclude>

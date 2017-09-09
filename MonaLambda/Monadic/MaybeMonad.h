@@ -44,18 +44,15 @@ struct None : private equal_comparable<None>
 		assert(message != nullptr);
 	}
 
-	ML_INLINE bool equal_to(const None& rhs) const
+	inline bool equal_to(const None& rhs) const
 	{
 		return message == rhs.message;
 	}
 };
 
-namespace Detail
-{
-
 template<typename Some>
 class Option 
-	:  private equal_comparable<Option<Some>>
+	: private equal_comparable<Option<Some>>
 {
 	enum Tag
 	{
@@ -65,7 +62,7 @@ class Option
 	const Tag tag;
 
 public:
-	typedef Option<Some> OptionBaseType;
+	typedef Option<Some> ThisType;
 
 	union 
 	{
@@ -73,12 +70,10 @@ public:
 		const None nothing;		
 	};
 		
-	//Option() : tag(Nothing), nothing("InvalidOption") {}
 	Option(const Some& something) : tag(Something), something(something) {}
 	Option(const None& none) : tag(Nothing), nothing(none) {}
-	//Option(const Option& option) : tag(option.tag), something(option.something), nothing(option.nothing) {}
 
-	ML_INLINE bool equal_to(const Option<Some>& rhs) const
+	inline bool equal_to(const Option<Some>& rhs) const
 	{
 		if (tag == rhs.tag)
 		{
@@ -90,124 +85,91 @@ public:
 		return false;
 	}
 
-	ML_INLINE bool isValid() const
+	inline bool isSome() const
 	{
 		return tag == Something;
 	}
 
-	static Option failWith(const None& nothing)
+	static ThisType failWith(const None& nothing)
 	{
 		return { nothing };
 	}
+
 };
 
-}; //namespace Detail
-
-class Maybe
+class Maybe : public Monad<Maybe>
 {
-	class MaybeBase
+public:
+	template<typename A, typename K>
+	static auto Bind(const Option<A>& m, const K& k)
 	{
-	};
-
-public: 
-	typedef MaybeBase	MonadBase;
-	typedef Maybe		MonadType;
+		if (m.isSome())
+		{
+			return k(m.something);
+		}
+		else
+		{
+			typedef decltype(k(m.something)) OptionB;
+			return OptionB::failWith(m.nothing);
+		}
+	}
 
 	template<typename A>
-	static ML_INLINE auto Return(const A& a)
+	static auto Return(const A& a)
 	{
-		typedef typename std::decay<decltype(a)>::type A;
-		return Detail::make_Monad<MonadType, A>(Detail::Option<A>(a));
-	}
-
-	template<typename M, typename B = typename M::MonadValueType, typename K>
-	static ML_INLINE auto Bind(const M& m, const K& k)
-	{
-		Detail::checkMonadConstraints<M>();
-		Detail::checkValueConstraints<B>();
-
-		typedef decltype(k(m.something)) OptionA;
-		typedef typename OptionA::OptionBaseType OptionB;
-
-		OptionB b = m.isValid() ? k(m.something) : OptionB::failWith(m.nothing);
-		return Detail::make_Monad<MonadType, B>(b);
-	}
-
-	template <typename M>
-	static typename M::OptionBaseType Eval(const M& m)
-	{
-		return m;
+		return Option<A>(a);
 	}
 
 	template<typename A = const char*>
-	ML_INLINE static auto FailWith(const char* message)
+	static auto FailWith(const char* message)
 	{
-		auto ma = Detail::Option<A>(None(message));
-		return Detail::make_Monad<MonadType, A>(ma);
+		return Option<A>(None(message));
 	}
 };
 
-template<typename OtherMonadType>
-class MaybeT
+template<typename Inner>
+class MaybeT : public Monad<MaybeT<Inner>>
 {
-	class MaybeTBase
-	{
-	};
-
 public:
-	typedef MaybeTBase							MonadBase;
-	typedef MaybeT<OtherMonadType>				MonadType;
-	typedef typename OtherMonadType::MonadType	InnerMonadType;
-
-	template<typename A>
-	static ML_INLINE auto Return(const A& a)
+	template<typename M, typename K>
+	static auto Bind(const M& ma, const K& k)
 	{
-		auto inner = InnerMonadType::Return(Detail::Option<A>(a));
-		return Detail::make_Monad<MonadType, A>(Detail::toMonadBase(inner));
-	}
-
-	template<typename M, typename B = typename M::MonadValueType, typename K>
-	static ML_INLINE auto Bind(const M& ma, const K& k)
-	{
-		Detail::checkMonadConstraints<M>();
-		Detail::checkValueConstraints<B>();
-
-		auto inner = InnerMonadType::Bind(Detail::toMonadBase(ma), [k](auto m)
+		return Inner::Bind(ma, [k](auto m) constexpr
 		{
-			auto mb = k(m.something); //TODO This is scary
-			return InnerMonadType::Bind(Detail::toMonadBase(mb), [m](auto b)
+			return Inner::Bind(k(m.something), [m](auto b) constexpr
 			{
-				typedef typename decltype(b)::OptionBaseType OptionB;
-				OptionB r = m.isValid() ? b : OptionB::failWith(m.nothing);
-				return InnerMonadType::Return(r);
+				typedef decltype(b) B;
+				if (m.isSome())
+				{
+					return Inner::Return(b);
+				}
+				else
+				{
+					return Inner::Return(B::failWith(m.nothing));
+				}
 			});
 		});
-		return Detail::make_Monad<MonadType, B>(Detail::toMonadBase(inner));
 	}
 
-	template<typename M, typename... Args>
-	static auto Eval(const M& ma, const Args&... args)
+	template<typename A>
+	static auto Return(const A& a)
 	{
-		auto mb = InnerMonadType::Eval(ma, args...);
-		return mb;
+		return Inner::Return(Option<A>(a));
 	}
 
 	template<typename MA>
-	ML_INLINE static auto ReturnM(const MA& ma)
+	static auto ReturnM(const MA& ma)
 	{
-		auto inner = InnerMonadType::Bind(Detail::toMonadBase(ma), [ma](auto a)
+		return Inner::Bind(ma, [ma](auto a) constexpr
 		{
-			return MonadType::Return(ma);
+			return Return(ma);
 		});
-		typedef typename MA::MonadValueType A;
-		return Detail::make_Monad<MonadType, A>(Detail::toMonadBase(inner));
 	}
 
 	template<typename A = const char*>
-	ML_INLINE static auto FailWith(const char* message)
+	static auto FailWith(const char* message)
 	{
-		auto ma = InnerMonadType::Return(Detail::Option<A>(None(message)));
-		return Detail::make_Monad<MonadType, A>(ma);
+		return Inner::Return(Option<A>(None(message)));
 	}
 };
 
