@@ -61,10 +61,10 @@ class AssignedLazy : public LAMBDA
 
 	typedef AssignedLazy<LAMBDA, VALUE> ThisType;
 
-	VALUE& Assignment;
+	VALUE* Assignment;
 
 public:
-	AssignedLazy(LAMBDA&& Lambda, VALUE& Assignment) : LAMBDA(std::forward<LAMBDA>(Lambda)), Assignment(Assignment)
+	AssignedLazy(LAMBDA&& Lambda, VALUE& Assignment) : LAMBDA(std::forward<LAMBDA>(Lambda)), Assignment(&Assignment)
 	{}
 };
 
@@ -116,19 +116,19 @@ public:
 	template<typename X, typename... XS>
 	static auto Do(const Lazy<X>& x, const XS&... xs)
 	{
-		return TYPE::Bind(x(), [&](auto) constexpr { return Do(xs...); });
+		return TYPE::Bind(x(), [=](auto) constexpr { return Do(xs...); });
 	};
 
 	template<typename X, typename V>
 	static auto Do(const AssignedLazy<X, V>& x)
 	{
-		return TYPE::Bind(x(), [&](auto a) constexpr { x.Assignment = a; return TYPE::Return(a); });
+		return TYPE::Bind(x(), [=](auto a) constexpr { *x.Assignment = a; return TYPE::Return(a); });
 	};
 
 	template<typename X, typename V, typename... XS>
 	static auto Do(const AssignedLazy<X, V>& x, const XS&... xs)
 	{
-		return TYPE::Bind(x(), [&](auto a) constexpr { x.Assignment = a; return Do(xs...); });
+		return TYPE::Bind(x(), [=](auto a) constexpr { *x.Assignment = a; return Do(xs...); });
 	};
 };
 

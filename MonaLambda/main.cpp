@@ -113,7 +113,7 @@ int main(void)
 		std::cout << "MaybeMonad passed" << std::endl;
 	}//*/
 
-/*	{
+	{
 		using namespace Monadic;
 
 		int vala = 0;
@@ -121,20 +121,20 @@ int main(void)
 		int valc = 0;
 
 		auto add = [](auto a, auto b) { return  a + b; };
-		auto addM = LiftMonad<decltype(add)(int, int)>::liftM<Maybe>(add);
+		auto addM = LiftMonad<decltype(add)(int, int)>::liftM<MaybeT<Cont>>(add);
 
 		auto mRes1 = MaybeT<Cont>::Do
 		(
-			//LAZY(MaybeT<Cont>::ReturnM(Cont::Do(
-			//	LAZY(Cont::Return(3))
-			//))),
-			//LAZY(MaybeT<Cont>::FailWith("error1")),
-			//LAZY(Maybe::Return(2))
-			vala <<= LAZY(MaybeT<Cont>::Return(1337))
-			//valb <<= LAZY(Maybe::Return(3)),
-			//LAZY(Maybe::FailWith<int>("Error")),
-			//valc <<= LAZY(addM(vala, valb)),
-			//LAZY(Maybe::Return(valc + valb))
+			LAZY(MaybeT<Cont>::ReturnM(Cont::Do(
+				LAZY(Cont::Return(3))
+			))),
+			LAZY(MaybeT<Cont>::FailWith("error1")),
+			LAZY(MaybeT<Cont>::Return(2)),
+			vala <<= LAZY(MaybeT<Cont>::Return(1337)),
+			valb <<= LAZY(MaybeT<Cont>::Return(3)),
+			LAZY(MaybeT<Cont>::FailWith<int>("Error")),
+			valc <<= LAZY(addM(vala, valb)),
+			LAZY(MaybeT<Cont>::Return(valc + valb))
 		);
 
 		auto res = mRes1([](auto a) {return a;});
@@ -152,10 +152,15 @@ int main(void)
 
 		int vala = 0;
 		char valb = 0;
+		float valc = 0;
 
 		auto mRes1 = Cont::Do
 		(
-			vala <<= LAZY(Cont::Return(1337)),
+			vala <<= LAZY(Cont::Do
+			(
+				valc <<= LAZY(Cont::Return(1337.0f)),
+				LAZY(Cont::Return((int)valc + 1))
+			)),
 			valb <<= LAZY(Cont::Return('c')),
 			LAZY(Cont::Return(std::make_pair(vala, valb)))
 		);
@@ -184,11 +189,11 @@ int main(void)
 			LAZY(ContT<State>::Return(std::make_pair(vala, valb)))
 		);
 
-		auto res = mRes1([](auto a) { return a; });
+		auto res = mRes1([](auto a) { return a; })(2);
 		(void)res;
 		
 		//Debug::checkMonadLaws<ContT<Maybe>>();
-		//Debug::checkMonadLaws<ContT<State>>(3);
+		//Debug::checkMonadLaws<ContT<State>>([](auto a) { return a; });
 		//Debug::checkMonadLaws<ContT<Cont>>([](auto a) { return a; });
 
 		std::cout << "ContinuationMonadTransformer passed" <<std::endl;
@@ -215,7 +220,7 @@ int main(void)
 		auto res = mRes1(state);
 		(void)res;
 
-		//Debug::checkMonadLaws<State>(state);
+		Debug::checkMonadLaws<State>(state);
 
 		std::cout << "StateMonad passed" << std::endl;
 	}
