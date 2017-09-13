@@ -84,7 +84,6 @@ public:
 		});
 	}
 
-	template<typename S>
 	static auto Get()
 	{
 		return BaseType::WrapMonad([](auto s) constexpr { return MakePair(s, s); });
@@ -150,7 +149,6 @@ public:
 		});
 	}
 
-	template<typename S>
 	static auto Get()
 	{
 		return BaseType::WrapMonad([](auto s) constexpr

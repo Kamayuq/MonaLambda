@@ -210,7 +210,7 @@ int main(void)
 		(
 			vala <<= LAZY(State::Return(1337)),
 			LAZY(State::Modify([](auto s){ return s * 2; })),
-			vals <<= LAZY(State::Get<int>()),
+			vals <<= LAZY(State::Get()),
 			LAZY(State::Put(vals + vala)),
 			valb <<= LAZY(State::Return('b')),
 			LAZY(State::Return(std::make_pair(vala, valb)))
@@ -240,7 +240,7 @@ int main(void)
 				//Maybe::FailWith("Error2")
 			))),
 			LAZY(StateT<Maybe>::Return(1337)),
-			vals <<= LAZY(StateT<Maybe>::Get<int>()),
+			vals <<= LAZY(StateT<Maybe>::Get()),
 			LAZY(StateT<Maybe>::Put(vala)),
 			LAZY(StateT<Maybe>::ReturnM(Do
 			(
@@ -248,7 +248,7 @@ int main(void)
 				//Maybe::FailWith("Error1")
 			))),
 			LAZY(StateT<Maybe>::Modify([](auto s){ return s * 2; })),
-			vals <<= LAZY(StateT<Maybe>::Get<int>()),
+			vals <<= LAZY(StateT<Maybe>::Get()),
 			LAZY(StateT<Maybe>::Put(valb)),
 			LAZY(StateT<Maybe>::Return(std::make_pair(vals, valb)))
 		);
