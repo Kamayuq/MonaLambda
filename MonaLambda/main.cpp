@@ -68,10 +68,10 @@ int main(void)
 		(
 			LAZY(ListT<Maybe>::ReturnM(Do(
 				LAZY(Maybe::Return(3))
-				//Maybe::FailWith("error2")
+				//LAZY(Maybe::FailWith("error2"))
 			))),
 			vala <<= LAZY(ListT<Maybe>::Return(1337))
-			//valb <<= Maybe::Return(3),
+			//valb <<= LAZY(Maybe::Return(3)),
 		);
 
 		//bool leq = List::Make(0, 1, 'c', 3) == List::Make(0, 1, 'c', 3);
@@ -100,7 +100,7 @@ int main(void)
 		(
 			vala <<= LAZY(Maybe::Return(1337)),
 			valb <<= LAZY(Maybe::Return(3)),
-			//Maybe::FailWith<int>("Error"),
+			//LAZY(Maybe::FailWith<int>("Error")),
 			valc <<= LAZY(addM(vala, valb)),
 			LAZY(Maybe::Return(valc + valb))
 		);
