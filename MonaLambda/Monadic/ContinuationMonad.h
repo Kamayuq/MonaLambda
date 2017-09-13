@@ -39,7 +39,7 @@ class Cont : public Monad<Cont>
 	typedef Monad<Cont> BaseType;
 public:
 	template<typename M, typename K>
-	static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const M& m, const K& k)
 	{
 		return  BaseType::WrapMonad([m, k](auto b /* (b -> r) -> r */) constexpr
 		{
@@ -52,7 +52,7 @@ public:
 	}
 
 	template<typename A>
-	static auto Return(const A& a)
+	constexpr static auto Return(const A& a)
 	{
 		return BaseType::WrapMonad([a] (auto k /* 'a->'r */) constexpr
 		{
@@ -62,18 +62,17 @@ public:
 
 	//callCC f = Cont (\k -> runCont (f (\a -> Cont (\_ -> k a))) k)
 	template<typename L>
-	static auto CallCC(const L& f)
+	constexpr static auto CallCC(const L& f)
 	{
 		return BaseType::WrapMonad([f](auto k) constexpr
 		{
-			auto b = f([k](auto a) constexpr
+			return (f([k](auto a) constexpr
 			{
 				return BaseType::WrapMonad([k, a](auto) constexpr
 				{
 					return k(a);
 				});
-			});
-			return b(k);
+			}))(k);
 		});
 	}
 };
@@ -84,7 +83,7 @@ class ContT : public Monad<ContT<Inner>>
 	typedef Monad<ContT<Inner>> BaseType;
 public:
 	template<typename M, typename K>
-	static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const M& m, const K& k)
 	{
 		return BaseType::WrapMonad([m, k](auto b /* (b -> r) -> r */) constexpr
 		{
@@ -102,7 +101,7 @@ public:
 	}
 
 	template<typename A>
-	static auto Return(const A& a)
+	constexpr static auto Return(const A& a)
 	{
 		return BaseType::WrapMonad([a](auto k /* 'a->'r */) constexpr
 		{
@@ -111,7 +110,7 @@ public:
 	}
 
 	template<typename MA>
-	static auto ReturnM(const MA& ma)
+	constexpr static auto ReturnM(const MA& ma)
 	{
 		return BaseType::WrapMonad([ma](auto k /* 'a->'r */) constexpr
 		{

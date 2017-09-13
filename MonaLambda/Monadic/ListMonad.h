@@ -40,13 +40,13 @@ class ListM : public Monad<ListM>
 	typedef Monad<ListM> BaseType;
 public:
 	template<typename M, typename K>
-	static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const M& m, const K& k)
 	{
 		return  BaseType::WrapMonad(List::Flatmap(k)(m));
 	}
 
 	template<typename A>
-	static auto Return(const A& a)
+	constexpr static auto Return(const A& a)
 	{
 		return BaseType::WrapMonad(List::Make(a));
 	}
@@ -58,21 +58,20 @@ class ListT : public Monad<ListT<Inner>>
 	typedef Monad<ListT<Inner>> BaseType;
 public:
 	template<typename M, typename K>
-	static auto Bind(const M& ma, const K& k)
+	constexpr static auto Bind(const M& ma, const K& k)
 	{
-		auto bind = List::Fmap([k](auto m)
+		return BaseType::WrapMonad(List::Fmap([k](auto m) constexpr
 		{
-			return Inner::Bind(m, [k](auto a)
+			return Inner::Bind(m, [k](auto a) constexpr
 			{
 				auto mb = k(a);
 				return mb.Head();
 			});
-		});
-		return BaseType::WrapMonad(bind(ma));
+		})(ma));
 	}
 
 	template<typename A>
-	static auto Return(const A& a)
+	constexpr static auto Return(const A& a)
 	{
 		return BaseType::WrapMonad(ListM::Return(Inner::Return(a)));
 	}

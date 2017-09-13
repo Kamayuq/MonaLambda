@@ -37,7 +37,7 @@ template<typename F, typename... Args>
 struct LiftMonad
 {
 	template<typename MonadType>
-	static auto liftM(const F& f)
+	constexpr static auto liftM(const F& f)
 	{
 		static_assert(function_traits::is_callable<F(Args...)>::value, "lift cannot be called with this arguments");
 		return [f](Args... args)
@@ -64,7 +64,7 @@ class AssignedLazy : public LAMBDA
 	VALUE* Assignment;
 
 public:
-	AssignedLazy(LAMBDA&& Lambda, VALUE& Assignment) : LAMBDA(std::forward<LAMBDA>(Lambda)), Assignment(&Assignment)
+	constexpr AssignedLazy(LAMBDA&& Lambda, VALUE& Assignment) : LAMBDA(std::forward<LAMBDA>(Lambda)), Assignment(&Assignment)
 	{}
 };
 
@@ -74,18 +74,18 @@ class Lazy : public LAMBDA
 	typedef Lazy<LAMBDA> ThisType;
 
 public:
-	Lazy(LAMBDA&& Lambda) : LAMBDA(std::forward<LAMBDA>(Lambda))
+	constexpr Lazy(LAMBDA&& Lambda) : LAMBDA(std::forward<LAMBDA>(Lambda))
 	{}
 
 	template<typename VALUE>
-	friend decltype(auto) operator <<= (VALUE& a, ThisType&& l)
+	friend constexpr decltype(auto) operator <<= (VALUE& a, ThisType&& l)
 	{
 		return AssignedLazy<LAMBDA, VALUE>(std::forward<ThisType>(l), a);
 	}
 };
 
 template<typename LAMBDA>
-auto MakeLazy(LAMBDA&& Lambda)
+constexpr auto MakeLazy(LAMBDA&& Lambda)
 {
 	return Lazy<LAMBDA>(std::forward<LAMBDA>(Lambda));
 };
@@ -99,41 +99,41 @@ protected:
 	struct WrappedMonad : public LAMBDA
 	{
 		typedef MonadType MonadType;
-		WrappedMonad(const LAMBDA& Lambda) : LAMBDA(Lambda) {}
-		const LAMBDA& Unwrap() { return *this; }
+		constexpr WrappedMonad(const LAMBDA& Lambda) : LAMBDA(Lambda) {}
+		constexpr const LAMBDA& Unwrap() { return *this; }
 	};
 
 	template<typename LAMBDA>
-	static auto WrapMonad(const LAMBDA& Lambda) { return WrappedMonad<LAMBDA>(Lambda); }
+	constexpr static auto WrapMonad(const LAMBDA& Lambda) { return WrappedMonad<LAMBDA>(Lambda); }
 
 public:
 	template<typename X>
-	static auto Do(const Lazy<X>& x)
+	constexpr static auto Do(const Lazy<X>& x)
 	{
 		return x();
 	};
 
 	template<typename X, typename... XS>
-	static auto Do(const Lazy<X>& x, const XS&... xs)
+	constexpr static auto Do(const Lazy<X>& x, const XS&... xs)
 	{
 		return MonadType::Bind(x().Unwrap(), [=](auto) constexpr { return MonadType::Do(xs...); });
 	};
 
 	template<typename X, typename V>
-	static auto Do(const AssignedLazy<X, V>& x)
+	constexpr static auto Do(const AssignedLazy<X, V>& x)
 	{
 		return MonadType::Bind(x().Unwrap(), [=](auto a) constexpr { *x.Assignment = a; return MonadType::Return(a); });
 	};
 
 	template<typename X, typename V, typename... XS>
-	static auto Do(const AssignedLazy<X, V>& x, const XS&... xs)
+	constexpr static auto Do(const AssignedLazy<X, V>& x, const XS&... xs)
 	{
 		return MonadType::Bind(x().Unwrap(), [=](auto a) constexpr { *x.Assignment = a; return MonadType::Do(xs...); });
 	};
 };
 
 template<typename X, typename... XS>
-auto Do(const X& x, const XS&... xs)
+constexpr auto Do(const X& x, const XS&... xs)
 {
 	typedef typename decltype(x())::MonadType MonadType;
 	return MonadType::Do(x, xs...);

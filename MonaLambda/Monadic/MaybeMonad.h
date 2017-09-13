@@ -70,8 +70,8 @@ public:
 		const None nothing;		
 	};
 		
-	Option(const Some& something) : tag(Something), something(something) {}
-	Option(const None& none) : tag(Nothing), nothing(none) {}
+	constexpr Option(const Some& something) : tag(Something), something(something) {}
+	constexpr Option(const None& none) : tag(Nothing), nothing(none) {}
 
 	inline bool equal_to(const Option<Some>& rhs) const
 	{
@@ -90,7 +90,7 @@ public:
 		return tag == Something;
 	}
 
-	static OptionType failWith(const None& nothing)
+	constexpr static OptionType failWith(const None& nothing)
 	{
 		return { nothing };
 	}
@@ -102,7 +102,7 @@ class Maybe : public Monad<Maybe>
 	typedef Monad<Maybe> BaseType;
 public:
 	template<typename M, typename K>
-	static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const M& m, const K& k)
 	{
 		typedef typename decltype(k(m.something))::OptionType OptionType;
 		if (m.isSome())
@@ -116,13 +116,13 @@ public:
 	}
 
 	template<typename A>
-	static auto Return(const A& a)
+	constexpr static auto Return(const A& a)
 	{
 		return BaseType::WrapMonad(Option<A>(a));
 	}
 
 	template<typename A = const char*>
-	static auto FailWith(const char* message)
+	constexpr static auto FailWith(const char* message)
 	{
 		return BaseType::WrapMonad(Option<A>(None(message)));
 	}
@@ -135,7 +135,7 @@ class MaybeT : public Monad<MaybeT<Inner>>
 	typedef Monad<MaybeT<Inner>> BaseType;
 public:
 	template<typename M, typename K>
-	static auto Bind(const M& ma, const K& k)
+	constexpr static auto Bind(const M& ma, const K& k)
 	{
 		return BaseType::WrapMonad(Inner::Bind(ma, [k](auto m) constexpr
 		{
@@ -155,13 +155,13 @@ public:
 	}
 
 	template<typename A>
-	static auto Return(const A& a)
+	constexpr static auto Return(const A& a)
 	{
 		return BaseType::WrapMonad(Inner::Return(Option<A>(a)));
 	}
 
 	template<typename MA>
-	static auto ReturnM(const MA& ma)
+	constexpr static auto ReturnM(const MA& ma)
 	{
 		return BaseType::WrapMonad(Inner::Bind(ma, [ma](auto a) constexpr
 		{
@@ -170,7 +170,7 @@ public:
 	}
 
 	template<typename A = const char*>
-	static auto FailWith(const char* message)
+	constexpr static auto FailWith(const char* message)
 	{
 		return BaseType::WrapMonad(Inner::Return(Option<A>(None(message))));
 	}

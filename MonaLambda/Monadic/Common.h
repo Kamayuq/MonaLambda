@@ -40,12 +40,12 @@ class equal_comparable
 
 struct Unit : private equal_comparable<Unit>
 {
-	inline bool equal_to(const Unit& rhs) const
+	constexpr bool equal_to(const Unit& rhs) const
 	{
 		return true;
 	}
 
-	inline bool equal_to(...) const
+	constexpr bool equal_to(...) const
 	{
 		return false;
 	}

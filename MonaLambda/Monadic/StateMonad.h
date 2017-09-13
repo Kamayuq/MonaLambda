@@ -40,11 +40,11 @@ struct Pair : private equal_comparable<Pair<S, A>>
 	typedef A ValueType;
 	typedef S StateType;
 
-	Pair(const S& state, const A& value) : state(state), value(value) {}
+	constexpr Pair(const S& state, const A& value) : state(state), value(value) {}
 	S state;
 	A value;
 
-	inline bool equal_to(const Pair<S, A>& rhs) const
+	constexpr bool equal_to(const Pair<S, A>& rhs) const
 	{
 		return state == rhs.state
 			&& value == rhs.value;
@@ -52,7 +52,7 @@ struct Pair : private equal_comparable<Pair<S, A>>
 };
 
 template<typename S, typename A>
-auto MakePair(const S& state, const A& value)
+constexpr auto MakePair(const S& state, const A& value)
 {
 	return Pair<S, A>(state, value);
 }
@@ -63,7 +63,7 @@ class State : public Monad<State>
 	typedef Monad<State> BaseType;
 public:
 	template<typename M, typename K>
-	static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const M& m, const K& k)
 	{
 		return BaseType::WrapMonad([m, k](auto s) constexpr
 		{
@@ -76,7 +76,7 @@ public:
 	}
 
 	template<typename A>
-	static auto Return(const A& a)
+	constexpr static auto Return(const A& a)
 	{
 		return BaseType::WrapMonad([a](auto s) constexpr
 		{
@@ -84,25 +84,25 @@ public:
 		});
 	}
 
-	static auto Get()
+	constexpr static auto Get()
 	{
 		return BaseType::WrapMonad([](auto s) constexpr { return MakePair(s, s); });
 	}
 
 	template<typename S>
-	static auto Put(const S& s)
+	constexpr static auto Put(const S& s)
 	{
 		return BaseType::WrapMonad([s](auto) constexpr { return MakePair(s, Unit()); });
 	}
 	
 	template<typename F>
-	static auto Modify(const F& f)
+	constexpr static auto Modify(const F& f)
 	{
 		return BaseType::WrapMonad([f](auto s) constexpr { return MakePair(f(s), Unit()); });
 	}
 
 	template<typename A, typename B>
-	static auto Seq(const A& a, const B& b)
+	constexpr static auto Seq(const A& a, const B& b)
 	{
 		return BaseType::WrapMonad(State::Bind(a, [b](auto) constexpr { return b; }));
 	}
@@ -114,7 +114,7 @@ class StateT : public Monad<StateT<Inner>>
 	typedef Monad<StateT<Inner>> BaseType;
 public:
 	template<typename M, typename K>
-	static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const M& m, const K& k)
 	{
 		return BaseType::WrapMonad([m, k](auto s) constexpr
 		{
@@ -129,7 +129,7 @@ public:
 	}
 
 	template<typename A>
-	static auto Return(const A& a)
+	constexpr static auto Return(const A& a)
 	{
 		return BaseType::WrapMonad([a](auto s) constexpr
 		{
@@ -138,7 +138,7 @@ public:
 	}
 
 	template<typename MA>
-	static auto ReturnM(const MA& ma)
+	constexpr static auto ReturnM(const MA& ma)
 	{
 		return BaseType::WrapMonad([ma](auto s) constexpr
 		{
@@ -149,7 +149,7 @@ public:
 		});
 	}
 
-	static auto Get()
+	constexpr static auto Get()
 	{
 		return BaseType::WrapMonad([](auto s) constexpr
 		{
@@ -158,7 +158,7 @@ public:
 	}
 
 	template<typename S>
-	static auto Put(const S& s)
+	constexpr static auto Put(const S& s)
 	{
 		return BaseType::WrapMonad([s](auto) constexpr
 		{
@@ -167,7 +167,7 @@ public:
 	}
 	
 	template<typename F>
-	static auto Modify(const F& f)
+	constexpr static auto Modify(const F& f)
 	{
 		return BaseType::WrapMonad([f](auto s) constexpr
 		{
@@ -176,7 +176,7 @@ public:
 	}
 
 	template<typename A, typename B>
-	static auto Seq(const A& a, const B& b)
+	constexpr static auto Seq(const A& a, const B& b)
 	{
 		return BaseType::WrapMonad(BaseType::Bind(a, [b](auto) constexpr { return b; }));
 	}

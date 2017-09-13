@@ -42,17 +42,17 @@ namespace ListInternal
 	{
 	};
 
-	auto List = [](auto ...xs)
+	auto List = [](auto ...xs) constexpr
 	{
 		return[xs...](auto a) { return a(xs...); };
 	};
 
-	auto Head = [](auto list)
+	auto Head = [](auto list) constexpr
 	{
 		return list([](auto head, auto ...tail) { return head; });
 	};
 
-	auto Tail = [](auto list)
+	auto Tail = [](auto list) constexpr
 	{
 		return list([](auto head, auto ...tail) { return List(tail...); });
 	};
@@ -65,19 +65,19 @@ struct ListL
 	, private equal_comparable<ListL<L1, S1>>
 {
 public:
-	ListL(const L1& l) : L1(l) 
+	constexpr ListL(const L1& l) : L1(l)
 	{
 		static_assert(!std::is_convertible<L1*, ListInternal::ListBase*>::value, "L is already type of a List try not to nest as it might cause errors and long compile times");
 	}
 
-	auto Head() const 
+	constexpr auto Head() const
 	-> decltype(ListInternal::Head(std::declval<L1>())) //MSVSClang debug info is crashing without this 
 	{
 		L1 l1 = *this; 
 		return ListInternal::Head(l1);
 	}
 
-	auto Tail() const 
+	constexpr auto Tail() const
 	-> ListL<decltype(ListInternal::Tail(std::declval<L1>())), S1 - 1> //MSVSClang debug info is crashing without this 
 	{
 		L1 l1 = *this;
@@ -91,7 +91,7 @@ public:
 	};
 
 	template<typename L2, size_t S2>
-	TL_INLINE bool equal_to(const ListL<L2, S2>& l2) const
+	constexpr bool equal_to(const ListL<L2, S2>& l2) const
 	{
 		if (S1 == S2)
 		{
@@ -108,7 +108,7 @@ private:
 	template<typename L1, typename L2, size_t S>
 	struct InternalEq
 	{
-		TL_INLINE static bool equal_to(const ListL<L1, S>& l1, const ListL<L2, S>& l2)
+		constexpr static bool equal_to(const ListL<L1, S>& l1, const ListL<L2, S>& l2)
 		{
 			if (l1.Head() == l2.Head())
 			{
@@ -121,7 +121,7 @@ private:
 	template<typename L1, typename L2>
 	struct InternalEq<L1, L2, 0>
 	{
-		TL_INLINE static bool equal_to(const ListL<L1, 0>& l1, const ListL<L2, 0>& l2)
+		constexpr static bool equal_to(const ListL<L1, 0>& l1, const ListL<L2, 0>& l2)
 		{
 			return true;
 		}
@@ -135,18 +135,18 @@ struct ListL<L1, 0>
 	, private equal_comparable<ListL<L1, 0>>
 {
 public:
-	ListL(const L1& l) : L1(l)
+	constexpr ListL(const L1& l) : L1(l)
 	{
 		static_assert(!std::is_convertible<L1*, ListInternal::ListBase*>::value, "L is already type of a List try not to nest as it might cause errors and long compile times");
 	}
 
-	auto Head() const 
+	constexpr auto Head() const
 	-> Unit //MSVSClang debug info is crashing without this 
 	{
 		return Unit();
 	}
 
-	auto Tail() const 
+	constexpr auto Tail() const
 	-> ListL<L1, 0> //MSVSClang debug info is crashing without this 
 	{
 		return *this;
@@ -158,7 +158,7 @@ public:
 	};
 
 	template<typename L2, size_t S2>
-	TL_INLINE bool equal_to(const ListL<L2, S2>& l2) const
+	constexpr bool equal_to(const ListL<L2, S2>& l2) const
 	{
 		if (S2 == 0)
 		{
@@ -174,7 +174,7 @@ public:
 struct List
 {
 	template<typename... Args>
-	TL_INLINE static auto Make(const Args&... xs)
+	constexpr static auto Make(const Args&... xs)
 	-> ListL<decltype(ListInternal::List(xs...)), sizeof...(xs)> //MSVSClang debug info is crashing without this 
 	{
 		auto list = ListInternal::List(xs...);
@@ -182,13 +182,13 @@ struct List
 	}
 
 	template<typename H, typename L1, size_t S1>
-	TL_INLINE static auto Cons(const H& head, const ListL<L1, S1>& list)
+	constexpr static auto Cons(const H& head, const ListL<L1, S1>& list)
 	{
 		return list([=](auto ...xs) { return List::Make(head, xs...); });
 	};
 
 	template<typename L1, size_t S1, typename L2, size_t S2>
-	TL_INLINE static auto Concat(const ListL<L1, S1>& list1, const ListL<L2, S2>& list2)
+	constexpr static auto Concat(const ListL<L1, S1>& list1, const ListL<L2, S2>& list2)
 	{
 		auto a1 = [=](auto ...xs)
 		{
@@ -202,7 +202,7 @@ struct List
 	};
 
 	template<typename F>
-	TL_INLINE static auto Fmap(const F& f)
+	constexpr static auto Fmap(const F& f)
 	{
 		return [f](auto list)
 		{
@@ -211,19 +211,19 @@ struct List
 	};
 
 	template <typename F>
-	TL_INLINE static auto Flatten(const F&)
+	constexpr static auto Flatten(const F&)
 	{
 		return List::Make();
 	}
 
 	template <typename F, typename A, typename... B>
-	TL_INLINE static auto Flatten(const F& f, const A& a, const B&... b)
+	constexpr static auto Flatten(const F& f, const A& a, const B&... b)
 	{
 		return List::Concat(f(a), Flatten(f, b...));
 	}
 
 	template <typename F>
-	TL_INLINE static auto Flatmap(const F& f)
+	constexpr static auto Flatmap(const F& f)
 	{
 		return [f](auto list)
 		{
