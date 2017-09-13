@@ -64,11 +64,11 @@ public:
 	template<typename L>
 	static auto CallCC(const L& f)
 	{
-		return BaseType::WrapMonad([f](auto k)
+		return BaseType::WrapMonad([f](auto k) constexpr
 		{
-			auto b = f([k](auto a)
+			auto b = f([k](auto a) constexpr
 			{
-				return BaseType::WrapMonad([k, a](auto)
+				return BaseType::WrapMonad([k, a](auto) constexpr
 				{
 					return k(a);
 				});

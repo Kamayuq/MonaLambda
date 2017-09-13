@@ -170,14 +170,16 @@ int main(void)
 
 		auto cc = Cont::CallCC([](auto k)
 		{
-			return Do(
-				LAZY(k(5)),
+			int v = 0;
+			return Do
+			(
+				v <<= LAZY(Cont::Return(5)),
+				LAZY(k(v)),
 				LAZY(Cont::Return(1337))
 			);
 		});
 
-
-		auto ccr = cc ([](auto a) { return a; });
+		auto ccr = cc ([](auto a) { return 2 * a; });
 		(void)ccr;
 
 
