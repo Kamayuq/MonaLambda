@@ -62,7 +62,7 @@ class Option
 	const Tag tag;
 
 public:
-	typedef Option<Some> ThisType;
+	typedef Option<Some> OptionType;
 
 	union 
 	{
@@ -90,7 +90,7 @@ public:
 		return tag == Something;
 	}
 
-	static ThisType failWith(const None& nothing)
+	static OptionType failWith(const None& nothing)
 	{
 		return { nothing };
 	}
@@ -99,31 +99,32 @@ public:
 
 class Maybe : public Monad<Maybe>
 {
+	typedef Monad<Maybe> BaseType;
 public:
-	template<typename A, typename K>
-	static auto Bind(const Option<A>& m, const K& k)
+	template<typename M, typename K>
+	static auto Bind(const M& m, const K& k)
 	{
+		typedef typename decltype(k(m.something))::OptionType OptionType;
 		if (m.isSome())
 		{
-			return k(m.something);
+			return BaseType::WrapMonad(OptionType(k(m.something)));
 		}
 		else
-		{
-			typedef decltype(k(m.something)) OptionB;
-			return OptionB::failWith(m.nothing);
+		{		
+			return BaseType::WrapMonad(OptionType::failWith(m.nothing));
 		}
 	}
 
 	template<typename A>
 	static auto Return(const A& a)
 	{
-		return Option<A>(a);
+		return BaseType::WrapMonad(Option<A>(a));
 	}
 
 	template<typename A = const char*>
 	static auto FailWith(const char* message)
 	{
-		return Option<A>(None(message));
+		return BaseType::WrapMonad(Option<A>(None(message)));
 	}
 
 };
@@ -131,11 +132,12 @@ public:
 template<typename Inner>
 class MaybeT : public Monad<MaybeT<Inner>>
 {
+	typedef Monad<MaybeT<Inner>> BaseType;
 public:
 	template<typename M, typename K>
 	static auto Bind(const M& ma, const K& k)
 	{
-		return Inner::Bind(ma, [k](auto m) constexpr
+		return BaseType::WrapMonad(Inner::Bind(ma, [k](auto m) constexpr
 		{
 			return Inner::Bind(k(m.something), [m](auto b) constexpr
 			{
@@ -149,28 +151,28 @@ public:
 					return Inner::Return(B::failWith(m.nothing));
 				}
 			});
-		});
+		}));
 	}
 
 	template<typename A>
 	static auto Return(const A& a)
 	{
-		return Inner::Return(Option<A>(a));
+		return BaseType::WrapMonad(Inner::Return(Option<A>(a)));
 	}
 
 	template<typename MA>
 	static auto ReturnM(const MA& ma)
 	{
-		return Inner::Bind(ma, [ma](auto a) constexpr
+		return BaseType::WrapMonad(Inner::Bind(ma, [ma](auto a) constexpr
 		{
 			return Return(ma);
-		});
+		}).Unwrap());
 	}
 
 	template<typename A = const char*>
 	static auto FailWith(const char* message)
 	{
-		return Inner::Return(Option<A>(None(message)));
+		return BaseType::WrapMonad(Inner::Return(Option<A>(None(message))));
 	}
 };
 

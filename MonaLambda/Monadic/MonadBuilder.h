@@ -91,20 +91,20 @@ auto MakeLazy(LAMBDA&& Lambda)
 };
 #define LAZY(EXPR) MakeLazy([&](){ return EXPR; })
 
-template<typename TYPE>
+template<typename MonadType>
 class Monad
 {
 protected:
-	template<typename M, typename K, typename LAMBDA>
-	struct WrappedBind : public LAMBDA
+	template<typename LAMBDA>
+	struct WrappedMonad : public LAMBDA
 	{
-		typedef M M;
-		typedef K K;
-		WrappedBind(const LAMBDA& Lambda) : LAMBDA(Lambda) {}
+		typedef MonadType MonadType;
+		WrappedMonad(const LAMBDA& Lambda) : LAMBDA(Lambda) {}
+		const LAMBDA& Unwrap() { return *this; }
 	};
 
-	template<typename M, typename K, typename LAMBDA>
-	static auto WrapBind(const LAMBDA& Lambda) { return WrappedBind<M, K, LAMBDA>(Lambda); }
+	template<typename LAMBDA>
+	static auto WrapMonad(const LAMBDA& Lambda) { return WrappedMonad<LAMBDA>(Lambda); }
 
 public:
 	template<typename X>
@@ -116,20 +116,27 @@ public:
 	template<typename X, typename... XS>
 	static auto Do(const Lazy<X>& x, const XS&... xs)
 	{
-		return TYPE::Bind(x(), [=](auto) constexpr { return Do(xs...); });
+		return MonadType::Bind(x().Unwrap(), [=](auto) constexpr { return MonadType::Do(xs...); });
 	};
 
 	template<typename X, typename V>
 	static auto Do(const AssignedLazy<X, V>& x)
 	{
-		return TYPE::Bind(x(), [=](auto a) constexpr { *x.Assignment = a; return TYPE::Return(a); });
+		return MonadType::Bind(x().Unwrap(), [=](auto a) constexpr { *x.Assignment = a; return MonadType::Return(a); });
 	};
 
 	template<typename X, typename V, typename... XS>
 	static auto Do(const AssignedLazy<X, V>& x, const XS&... xs)
 	{
-		return TYPE::Bind(x(), [=](auto a) constexpr { *x.Assignment = a; return Do(xs...); });
+		return MonadType::Bind(x().Unwrap(), [=](auto a) constexpr { *x.Assignment = a; return MonadType::Do(xs...); });
 	};
 };
+
+template<typename X, typename... XS>
+auto Do(const X& x, const XS&... xs)
+{
+	typedef typename decltype(x())::MonadType MonadType;
+	return MonadType::Do(x, xs...);
+}
 
 }; //namespace Monadic

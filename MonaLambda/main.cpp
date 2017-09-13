@@ -40,7 +40,7 @@ int main(void)
 		using namespace Monadic;
 
 		int vala = 0;
-		auto mRes1 = ListM::Do
+		auto mRes1 = Do
 		(
 			vala <<= LAZY(ListM::Return(1337)),
 			LAZY(ListM::Return(1)),
@@ -66,7 +66,7 @@ int main(void)
 		int vala = 0;
 		auto mRes1 = ListT<Maybe>::Do
 		(
-			LAZY(ListT<Maybe>::ReturnM(Maybe::Do(
+			LAZY(ListT<Maybe>::ReturnM(Do(
 				LAZY(Maybe::Return(3))
 				//Maybe::FailWith("error2")
 			))),
@@ -96,7 +96,7 @@ int main(void)
 		auto add = [](auto a, auto b){ return  a + b; };
 		auto addM = LiftMonad<decltype(add)(int, int)>::liftM<Maybe>(add);
 
-		auto mRes1 = Maybe::Do
+		auto mRes1 = Do
 		(
 			vala <<= LAZY(Maybe::Return(1337)),
 			valb <<= LAZY(Maybe::Return(3)),
@@ -123,9 +123,9 @@ int main(void)
 		auto add = [](auto a, auto b) { return  a + b; };
 		auto addM = LiftMonad<decltype(add)(int, int)>::liftM<MaybeT<Cont>>(add);
 
-		auto mRes1 = MaybeT<Cont>::Do
+		auto mRes1 = Do
 		(
-			LAZY(MaybeT<Cont>::ReturnM(Cont::Do(
+			LAZY(MaybeT<Cont>::ReturnM(Do(
 				LAZY(Cont::Return(3))
 			))),
 			LAZY(MaybeT<Cont>::FailWith("error1")),
@@ -154,9 +154,9 @@ int main(void)
 		char valb = 0;
 		float valc = 0;
 
-		auto mRes1 = Cont::Do
+		auto mRes1 = Do
 		(
-			vala <<= LAZY(Cont::Do
+			vala <<= LAZY(Do
 			(
 				valc <<= LAZY(Cont::Return(1337.0f)),
 				LAZY(Cont::Return((int)valc + 1))
@@ -179,9 +179,9 @@ int main(void)
 		int vala = 0;
 		char valb = 0;
 
-		auto mRes1 = ContT<State>::Do
+		auto mRes1 = Do
 		(
-			LAZY(ContT<State>::ReturnM(State::Do(
+			LAZY(ContT<State>::ReturnM(Do(
 				LAZY(State::Return(3))
 			))),
 			vala <<= LAZY(ContT<State>::Return(1337)),
@@ -206,7 +206,7 @@ int main(void)
 		char valb = 0;
 		int vals = 0;
 		
-		auto mRes1 = State::Do
+		auto mRes1 = Do
 		(
 			vala <<= LAZY(State::Return(1337)),
 			LAZY(State::Modify([](auto s){ return s * 2; })),
@@ -232,9 +232,9 @@ int main(void)
 		char valb = 0;
 		int vals = 0;
 		
-		auto mRes1 = StateT<Maybe>::Do
+		auto mRes1 = Do
 		(		
-			LAZY(StateT<Maybe>::ReturnM(Maybe::Do
+			LAZY(StateT<Maybe>::ReturnM(Do
 			(
 				vala <<= LAZY(Maybe::Return(1337))
 				//Maybe::FailWith("Error2")
@@ -242,7 +242,7 @@ int main(void)
 			LAZY(StateT<Maybe>::Return(1337)),
 			vals <<= LAZY(StateT<Maybe>::Get<int>()),
 			LAZY(StateT<Maybe>::Put(vala)),
-			LAZY(StateT<Maybe>::ReturnM(Maybe::Do
+			LAZY(StateT<Maybe>::ReturnM(Do
 			(
 				valb <<= LAZY(Maybe::Return('c'))
 				//Maybe::FailWith("Error1")
