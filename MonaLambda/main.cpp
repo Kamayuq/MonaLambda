@@ -64,7 +64,7 @@ int main(void)
 		using namespace Monadic;
 
 		int vala = 0;
-		auto mRes1 = ListT<Maybe>::Do
+		auto mRes1 = Do
 		(
 			LAZY(ListT<Maybe>::ReturnM(Do(
 				LAZY(Maybe::Return(3))
@@ -167,6 +167,19 @@ int main(void)
 
 		auto res = mRes1([](auto a) { return a; });
 		(void)res;
+
+		auto cc = Cont::CallCC([](auto k)
+		{
+			return Do(
+				LAZY(k(5)),
+				LAZY(Cont::Return(1337))
+			);
+		});
+
+
+		auto ccr = cc ([](auto a) { return a; });
+		(void)ccr;
+
 
 		Debug::checkMonadLaws<Cont>([](auto a) { return a; });
 

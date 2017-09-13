@@ -80,7 +80,7 @@ public:
 	template<typename MA>
 	static auto ReturnM(const MA& ma)
 	{
-		return BaseType::WrapMonad(ListM::Return(ma));
+		return BaseType::WrapMonad(ListM::Return(ma).Unwrap());
 	}
 };
 

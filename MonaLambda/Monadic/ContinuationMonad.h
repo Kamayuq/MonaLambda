@@ -59,6 +59,23 @@ public:
 			return k(a);
 		});
 	}
+
+	//callCC f = Cont (\k -> runCont (f (\a -> Cont (\_ -> k a))) k)
+	template<typename L>
+	static auto CallCC(const L& f)
+	{
+		return BaseType::WrapMonad([f](auto k)
+		{
+			auto b = f([k](auto a)
+			{
+				return BaseType::WrapMonad([k, a](auto)
+				{
+					return k(a);
+				});
+			});
+			return b(k);
+		});
+	}
 };
 
 template<typename Inner>
