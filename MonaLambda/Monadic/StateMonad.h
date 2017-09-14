@@ -61,9 +61,12 @@ constexpr auto MakePair(const S& state, const A& value)
 class State : public Monad<State>
 {
 	typedef Monad<State> BaseType;
+	template<typename L>
+	using  WrappedMonad = typename BaseType::template WrappedMonad<L>;
+
 public:
 	template<typename M, typename K>
-	constexpr static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const WrappedMonad<M>& m, const K& k)
 	{
 		return BaseType::WrapMonad([m, k](auto s) constexpr
 		{
@@ -112,13 +115,21 @@ template<typename Inner>
 class StateT : public Monad<StateT<Inner>>
 {
 	typedef Monad<StateT<Inner>> BaseType;
+	template<typename L>
+	using  WrappedMonad = typename BaseType::template WrappedMonad<L>;
+
+	typedef Monad<Inner> InnerBaseType;
+	template<typename L>
+	using  InnerWrappedMonad = typename InnerBaseType::template WrappedMonad<L>;
+
 public:
 	template<typename M, typename K>
-	constexpr static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const WrappedMonad<M>& m, const K& k)
 	{
 		return BaseType::WrapMonad([m, k](auto s) constexpr
 		{
-			return Inner::Bind(m(s), [k](auto p) constexpr
+			auto ms = m(s);
+			return Inner::Bind(ms, [k](auto p) constexpr
 			{
 				auto v2 = p.value;
 				auto s2 = p.state;
@@ -138,14 +149,14 @@ public:
 	}
 
 	template<typename MA>
-	constexpr static auto ReturnM(const MA& ma)
+	constexpr static auto ReturnM(const InnerWrappedMonad<MA>& ma)
 	{
 		return BaseType::WrapMonad([ma](auto s) constexpr
 		{
 			return Inner::Bind(ma, [s, ma](auto a) constexpr
 			{
 				return Return(ma)(s);
-			}).Unwrap();
+			});
 		});
 	}
 

@@ -30,6 +30,7 @@
 
 #pragma once
 #include <utility>
+#include <functional>
 
 template<typename T>
 class equal_comparable
@@ -108,4 +109,34 @@ namespace function_traits
 
 	template<typename F, typename... A>
 	struct is_callable <F(A...)> : is_callable <F, A...> { };
+
+	// For generic types that are functors, delegate to its 'operator()'
+	template <typename T>
+	struct function_sig
+		: public function_sig<decltype(&T::operator())>
+	{};
+
+	// for pointers to member function
+	template <typename ClassType, typename ReturnType, typename... Args>
+	struct function_sig<ReturnType(ClassType::*)(Args...) const> {
+		//enum { arity = sizeof...(Args) };
+		typedef std::function<ReturnType(Args...)> signature;
+	};
+
+	// for pointers to member function
+	template <typename ClassType, typename ReturnType, typename... Args>
+	struct function_sig<ReturnType(ClassType::*)(Args...) > {
+		typedef std::function<ReturnType(Args...)> signature;
+	};
+
+	// for function pointers
+	template <typename ReturnType, typename... Args>
+	struct function_sig<ReturnType(*)(Args...)> {
+		typedef std::function<ReturnType(Args...)> signature;
+	};
+
+	template <typename L>
+	typename function_sig<L>::signature make_function(L l) {
+		return (typename function_sig<L>::signature)(l);
+	}
 }

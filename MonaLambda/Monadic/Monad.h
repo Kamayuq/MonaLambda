@@ -68,13 +68,13 @@ struct Debug
 #endif
 		}
 		{
-			auto verfy1 = MonadType::Do
+			auto verfy1 = Do
 			(
 				LAZY(apply1(123))
 			);
 			
 			int a1;
-			auto verfy2 = MonadType::Do
+			auto verfy2 = Do
 			(
 				a1 <<= LAZY(MonadType::Return(123)),
 				LAZY(apply1(a1))
@@ -118,13 +118,13 @@ struct Debug
 		{
 			auto mVal = MonadType::Return(123);
 
-			auto verfy4 = MonadType::Do
+			auto verfy4 = Do
 			(
 				LAZY(mVal)
 			);
 
 			int v1;
-			auto verfy3 = MonadType::Do
+			auto verfy3 = Do
 			(
 				v1 <<= LAZY(mVal),
 				LAZY(apply1(v1))
@@ -161,7 +161,7 @@ struct Debug
 			auto mVal = MonadType::Return(123);
 
 			int v1, v2;
-			auto verfy5 = MonadType::Do
+			auto verfy5 = Do
 			(
 				v1 <<= LAZY(mVal),
 				v2 <<= LAZY(apply1(v1)),
@@ -169,9 +169,9 @@ struct Debug
 			);
 
 			int v3, v4;
-			auto verfy6 = MonadType::Do
+			auto verfy6 = Do
 			(
-				v4 <<= LAZY(MonadType::Do
+				v4 <<= LAZY(Do
 				(
 					v3 <<= LAZY(mVal),
 					LAZY(apply1(v3))

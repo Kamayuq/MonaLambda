@@ -168,20 +168,20 @@ int main(void)
 		auto res = mRes1([](auto a) { return a; });
 		(void)res;
 
-		auto cc = Cont::CallCC([](auto k)
+		static int global = 5;
+		int v = 0;
+		auto cc = Cont::CallCC([&](auto k)
 		{
-			int v = 0;
 			return Do
 			(
-				v <<= LAZY(Cont::Return(5)),
-				LAZY(k(v)),
-				LAZY(Cont::Return(1337))
+				v <<= LAZY(Cont::Return(global)),
+				LAZY(k(v))
+				//If(LAZY(v < 5), Do(LAZY(k(v))), Do(LAZY(Cont::Return(1337))))
 			);
 		});
 
-		auto ccr = cc ([](auto a) { return 2 * a; });
-		(void)ccr;
-
+		auto r = cc ([](auto a) { return Cont::Return(2 * a); });
+		auto r2 = r([](auto a) { return a; });
 
 		Debug::checkMonadLaws<Cont>([](auto a) { return a; });
 

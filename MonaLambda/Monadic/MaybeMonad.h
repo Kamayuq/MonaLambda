@@ -100,9 +100,12 @@ public:
 class Maybe : public Monad<Maybe>
 {
 	typedef Monad<Maybe> BaseType;
+	template<typename L>
+	using  WrappedMonad = typename BaseType::template WrappedMonad<L>;
+
 public:
 	template<typename M, typename K>
-	constexpr static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const WrappedMonad<M>& m, const K& k)
 	{
 		typedef typename decltype(k(m.something))::OptionType OptionType;
 		if (m.isSome())
@@ -133,10 +136,18 @@ template<typename Inner>
 class MaybeT : public Monad<MaybeT<Inner>>
 {
 	typedef Monad<MaybeT<Inner>> BaseType;
+	template<typename L>
+	using  WrappedMonad = typename BaseType::template WrappedMonad<L>;
+
+	typedef Monad<Inner> InnerBaseType;
+	template<typename L>
+	using  InnerWrappedMonad = typename InnerBaseType::template WrappedMonad<L>;
+
 public:
 	template<typename M, typename K>
-	constexpr static auto Bind(const M& ma, const K& k)
+	constexpr static auto Bind(const WrappedMonad<M>& wma, const K& k)
 	{
+		auto ma = InnerWrappedMonad<M>(wma.Unwrap());
 		return BaseType::WrapMonad(Inner::Bind(ma, [k](auto m) constexpr
 		{
 			return Inner::Bind(k(m.something), [m](auto b) constexpr
@@ -161,11 +172,11 @@ public:
 	}
 
 	template<typename MA>
-	constexpr static auto ReturnM(const MA& ma)
+	constexpr static auto ReturnM(const InnerWrappedMonad<MA>& ma)
 	{
 		return BaseType::WrapMonad(Inner::Bind(ma, [ma](auto a) constexpr
 		{
-			return Return(ma);
+			return Return(ma).Unwrap();
 		}).Unwrap());
 	}
 

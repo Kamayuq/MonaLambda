@@ -38,9 +38,12 @@ namespace Monadic
 class ListM : public Monad<ListM>
 {
 	typedef Monad<ListM> BaseType;
+	template<typename L>
+	using  WrappedMonad = typename BaseType::template WrappedMonad<L>;
+
 public:
 	template<typename M, typename K>
-	constexpr static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const WrappedMonad<M>& m, const K& k)
 	{
 		return  BaseType::WrapMonad(List::Flatmap(k)(m));
 	}
@@ -56,9 +59,16 @@ template<typename Inner>
 class ListT : public Monad<ListT<Inner>>
 {
 	typedef Monad<ListT<Inner>> BaseType;
+	template<typename L>
+	using  WrappedMonad = typename BaseType::template WrappedMonad<L>;
+
+	typedef Monad<Inner> InnerBaseType;
+	template<typename L>
+	using  InnerWrappedMonad = typename InnerBaseType::template WrappedMonad<L>;
+
 public:
 	template<typename M, typename K>
-	constexpr static auto Bind(const M& ma, const K& k)
+	constexpr static auto Bind(const WrappedMonad<M>& ma, const K& k)
 	{
 		return BaseType::WrapMonad(List::Fmap([k](auto m) constexpr
 		{
@@ -77,7 +87,7 @@ public:
 	}
 
 	template<typename MA>
-	static auto ReturnM(const MA& ma)
+	static auto ReturnM(const InnerWrappedMonad<MA>& ma)
 	{
 		return BaseType::WrapMonad(ListM::Return(ma).Unwrap());
 	}

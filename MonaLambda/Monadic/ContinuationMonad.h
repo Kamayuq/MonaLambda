@@ -37,9 +37,12 @@ namespace Monadic
 class Cont : public Monad<Cont>
 {
 	typedef Monad<Cont> BaseType;
+	template<typename L>
+	using  WrappedMonad = typename BaseType::template WrappedMonad<L>;
+
 public:
 	template<typename M, typename K>
-	constexpr static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const  WrappedMonad<M>& m, const K& k)
 	{
 		return  BaseType::WrapMonad([m, k](auto b /* (b -> r) -> r */) constexpr
 		{
@@ -81,9 +84,16 @@ template<typename Inner>
 class ContT : public Monad<ContT<Inner>>
 {
 	typedef Monad<ContT<Inner>> BaseType;
+	template<typename L>
+	using  WrappedMonad = typename BaseType::template WrappedMonad<L>;
+
+	typedef Monad<Inner> InnerBaseType;
+	template<typename L>
+	using  InnerWrappedMonad = typename InnerBaseType::template WrappedMonad<L>;
+
 public:
 	template<typename M, typename K>
-	constexpr static auto Bind(const M& m, const K& k)
+	constexpr static auto Bind(const WrappedMonad<M>& m, const K& k)
 	{
 		return BaseType::WrapMonad([m, k](auto b /* (b -> r) -> r */) constexpr
 		{
@@ -110,14 +120,14 @@ public:
 	}
 
 	template<typename MA>
-	constexpr static auto ReturnM(const MA& ma)
+	constexpr static auto ReturnM(const InnerWrappedMonad<MA>& ma)
 	{
 		return BaseType::WrapMonad([ma](auto k /* 'a->'r */) constexpr
 		{
 			return Inner::Bind(ma, [k, ma](auto a) constexpr
 			{
 				return Return(ma)(k);
-			}).Unwrap();
+			});
 		});
 	}
 };

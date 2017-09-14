@@ -29,6 +29,7 @@
 
 #pragma once
 #include "Common.h"
+#include <functional>
 
 namespace Monadic
 {
@@ -53,8 +54,18 @@ struct LiftMonad<F(Args...)> : LiftMonad<F, Args...>
 
 };
 
+template<typename LAMBDA>
+class Lazy : public LAMBDA
+{
+	typedef Lazy<LAMBDA> ThisType;
+
+public:
+	constexpr Lazy(LAMBDA&& Lambda) : LAMBDA(std::forward<LAMBDA>(Lambda))
+	{}
+};
+
 template<typename LAMBDA, typename VALUE>
-class AssignedLazy : public LAMBDA
+class AssignedLazy : public Lazy<LAMBDA>
 {
 	template<typename TYPE>
 	friend class Monad;
@@ -64,25 +75,15 @@ class AssignedLazy : public LAMBDA
 	VALUE* Assignment;
 
 public:
-	constexpr AssignedLazy(LAMBDA&& Lambda, VALUE& Assignment) : LAMBDA(std::forward<LAMBDA>(Lambda)), Assignment(&Assignment)
+	constexpr AssignedLazy(LAMBDA&& Lambda, VALUE& Assignment) : Lazy<LAMBDA>(std::forward<LAMBDA>(Lambda)), Assignment(&Assignment)
 	{}
 };
 
-template<typename LAMBDA>
-class Lazy : public LAMBDA
+template<typename VALUE, typename LAMBDA>
+constexpr decltype(auto) operator <<= (VALUE& a, Lazy<LAMBDA>&& l)
 {
-	typedef Lazy<LAMBDA> ThisType;
-
-public:
-	constexpr Lazy(LAMBDA&& Lambda) : LAMBDA(std::forward<LAMBDA>(Lambda))
-	{}
-
-	template<typename VALUE>
-	friend constexpr decltype(auto) operator <<= (VALUE& a, ThisType&& l)
-	{
-		return AssignedLazy<LAMBDA, VALUE>(std::forward<ThisType>(l), a);
-	}
-};
+	return AssignedLazy<LAMBDA, VALUE>(std::forward<Lazy<LAMBDA>>(l), a);
+}
 
 template<typename LAMBDA>
 constexpr auto MakeLazy(LAMBDA&& Lambda)
@@ -91,52 +92,82 @@ constexpr auto MakeLazy(LAMBDA&& Lambda)
 };
 #define LAZY(EXPR) MakeLazy([&](){ return EXPR; })
 
+template<typename C, typename L1, typename L2>
+auto If(C Comparator, const Lazy<L1>& f1, const Lazy<L2>& f2)
+{
+	typedef typename decltype(f1())::MonadType MonadType;
+
+	auto b1 = MonadType::Bind(f1(), [&](auto r1)
+	{
+		return MonadType::Return(r1);
+	});
+	auto b2 = MonadType::Bind(f2(), [&](auto r2)
+	{
+		return MonadType::Return(r2);
+	});
+
+	auto res = Comparator() ? b1 : b2;
+
+	return LAZY(res);
+}
+
+
 template<typename MonadType>
 class Monad
 {
-protected:
+public:
 	template<typename LAMBDA>
 	struct WrappedMonad : public LAMBDA
 	{
 		typedef MonadType MonadType;
 		constexpr WrappedMonad(const LAMBDA& Lambda) : LAMBDA(Lambda) {}
-		constexpr const LAMBDA& Unwrap() { return *this; }
+		constexpr const LAMBDA& Unwrap() const { return *this; }
 	};
 
+protected:
 	template<typename LAMBDA>
 	constexpr static auto WrapMonad(const LAMBDA& Lambda) { return WrappedMonad<LAMBDA>(Lambda); }
 
-public:
+private:
 	template<typename X>
 	constexpr static auto Do(const Lazy<X>& x)
 	{
-		return x();
+		return MonadType::Bind(x(), [=](auto a) constexpr { return MonadType::Return(a); });
 	};
 
 	template<typename X, typename... XS>
 	constexpr static auto Do(const Lazy<X>& x, const XS&... xs)
 	{
-		return MonadType::Bind(x().Unwrap(), [=](auto) constexpr { return MonadType::Do(xs...); });
+		return MonadType::Bind(x(), [=](auto) constexpr { return MonadType::Do(xs...); });
 	};
 
 	template<typename X, typename V>
 	constexpr static auto Do(const AssignedLazy<X, V>& x)
 	{
-		return MonadType::Bind(x().Unwrap(), [=](auto a) constexpr { *x.Assignment = a; return MonadType::Return(a); });
+		return MonadType::Bind(x(), [=](auto a) constexpr { *x.Assignment = a; return MonadType::Return(a); });
 	};
 
 	template<typename X, typename V, typename... XS>
 	constexpr static auto Do(const AssignedLazy<X, V>& x, const XS&... xs)
 	{
-		return MonadType::Bind(x().Unwrap(), [=](auto a) constexpr { *x.Assignment = a; return MonadType::Do(xs...); });
+		return MonadType::Bind(x(), [=](auto a) constexpr { *x.Assignment = a; return MonadType::Do(xs...); });
 	};
+
+public:
+	template<typename... XS>
+	constexpr static auto Delay(const XS&... xs)
+	{
+		//typedef decltype(MonadType::Do(xs...)) R;
+		//typedef std::function<R()> Erasure;
+		return MonadType::Do(xs...);
+	}
 };
 
 template<typename X, typename... XS>
 constexpr auto Do(const X& x, const XS&... xs)
 {
 	typedef typename decltype(x())::MonadType MonadType;
-	return MonadType::Do(x, xs...);
+	return MonadType::Delay(x, xs...);
 }
 
 }; //namespace Monadic
