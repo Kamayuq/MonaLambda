@@ -126,7 +126,7 @@ public:
 		{
 			return Inner::Bind(ma, [k, ma](auto a) constexpr
 			{
-				return Return(ma)(k);
+				return (Return(ma).Unwrap())(k);
 			});
 		});
 	}

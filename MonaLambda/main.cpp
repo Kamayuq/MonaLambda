@@ -175,13 +175,16 @@ int main(void)
 			return Do
 			(
 				v <<= LAZY(Cont::Return(global)),
-				LAZY(k(v))
-				//If(LAZY(v < 5), Do(LAZY(k(v))), Do(LAZY(Cont::Return(1337))))
+				LAZY(k((v == 5) ? v : 1337))
+				//If(LAZY(v == 5), LAZY(Do(LAZY(k(v)))), LAZY(Do(LAZY(Cont::Return(1337)))))
 			);
 		});
 
-		auto r = cc ([](auto a) { return Cont::Return(2 * a); });
-		auto r2 = r([](auto a) { return a; });
+		auto r = cc ([](auto a) 
+		{ 
+			return (2 * a); 
+		});
+		//auto r2 = r([](auto a) { return a; });
 
 		Debug::checkMonadLaws<Cont>([](auto a) { return a; });
 

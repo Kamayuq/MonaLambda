@@ -96,19 +96,12 @@ template<typename C, typename L1, typename L2>
 auto If(C Comparator, const Lazy<L1>& f1, const Lazy<L2>& f2)
 {
 	typedef typename decltype(f1())::MonadType MonadType;
-
-	auto b1 = MonadType::Bind(f1(), [&](auto r1)
-	{
-		return MonadType::Return(r1);
-	});
-	auto b2 = MonadType::Bind(f2(), [&](auto r2)
-	{
-		return MonadType::Return(r2);
-	});
-
-	auto res = Comparator() ? b1 : b2;
-
-	return LAZY(res);
+	auto id = [](auto r) { return r; };
+	auto r1 = (f1())(id);
+	auto r2 = (f2())(id);
+	bool branch = Comparator();
+	auto res = branch ?  r1 : r2;
+	return LAZY(MonadType::Return(res));
 }
 
 
@@ -119,6 +112,7 @@ public:
 	template<typename LAMBDA>
 	struct WrappedMonad : public LAMBDA
 	{
+		//typedef decltype(&LAMBDA::operator()) Signature;
 		typedef MonadType MonadType;
 		constexpr WrappedMonad(const LAMBDA& Lambda) : LAMBDA(Lambda) {}
 		constexpr const LAMBDA& Unwrap() const { return *this; }
@@ -157,7 +151,6 @@ public:
 	template<typename... XS>
 	constexpr static auto Delay(const XS&... xs)
 	{
-		//typedef decltype(MonadType::Do(xs...)) R;
 		//typedef std::function<R()> Erasure;
 		return MonadType::Do(xs...);
 	}
